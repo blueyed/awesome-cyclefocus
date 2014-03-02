@@ -28,9 +28,9 @@ local cyclefocus = {
 
     -- Preset to be used for the notification.
     naughty_preset = {
-        position = 'bottom_left',
+        position = 'top_left',
         timeout = 0,
-        font = "Ubuntu Regular 14",
+        font = "sans 14",
         icon_size = 32,
     },
 
