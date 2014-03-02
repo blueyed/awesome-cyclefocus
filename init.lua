@@ -40,7 +40,7 @@ local cyclefocus = {
     -- This is different from the cycle_filters.
     filter_focus_history = awful.client.focus.filter,
 
-    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose
+    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
 }
 
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
@@ -61,7 +61,7 @@ cyclefocus.filters = {
     end
 }
 
-local ignore_focus_signal = false
+local ignore_focus_signal = false  -- Flag to ignore the focus signal internally.
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
@@ -76,7 +76,7 @@ local debug = function(s, level)
         font = "monospace 10",
     })
 end
-cyclefocus.debug = debug
+cyclefocus.debug = debug  -- Used as reference in the filters above.
 -- }}}
 
 
@@ -109,6 +109,8 @@ end
 -- }}}
 
 -- Connect to signals. {{{
+-- Add clients that got focused to the history stack,
+-- but not when we are cycling through the clients ourselves.
 client.connect_signal("focus", function (c)
     if ignore_focus_signal then
         debug("Ignoring focus signal: " .. c.name, 3)
@@ -116,6 +118,9 @@ client.connect_signal("focus", function (c)
     end
     history.add(c)
 end)
+
+-- Only manage clients during startup to fill the stack
+-- initially. Later clients are handled via the "focus" signal.
 client.connect_signal("manage", function (c, startup)
     if not startup then
         return
@@ -284,7 +289,7 @@ cyclefocus.cycle = function(startdirection, args)
 end
 
 
--- A helper method around awful.key.
+-- A helper method to wrap awful.key.
 function cyclefocus.key(mods, key, startdirection, _args)
     local mods = mods or {modkey} or {"Mod4"}
     local key = key or "Tab"
