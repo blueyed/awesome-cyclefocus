@@ -15,7 +15,7 @@ local capi         = {
     keygrabber     = keygrabber,
 --     mousegrabber   = mousegrabber,
 --     mouse          = mouse,
---     screen         = screen
+    screen         = screen
 }
 
 
@@ -31,7 +31,7 @@ local cyclefocus = {
         position = 'top_left',
         timeout = 0,
         font = "sans 14",
-        icon_size = 32,
+        icon_size = 48,
     },
 
     cycle_filters = {},
