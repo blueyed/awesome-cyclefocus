@@ -163,13 +163,8 @@ cyclefocus.cycle = function(startdirection, args)
         local nextc
         while true do
             debug('find loop: #' .. idx, 3)
-            idx = idx + direction
-            if idx < 1 then
-                idx = #history.stack
-            elseif idx > #history.stack then
-                idx = 1
-            end
-            nextc = history.stack[idx]
+            idx = awful.util.cycle(#history.stack, idx + direction)
+            nextc = idx and history.stack[idx]
 
             if nextc then
                 -- Filtering.
@@ -189,7 +184,7 @@ cyclefocus.cycle = function(startdirection, args)
             end
 
             -- Abort after having looped through all clients once
-            if startidx == idx then
+            if not idx or startidx == idx then
                 debug("No (other) client found!", 1)
                 return nil
             end
