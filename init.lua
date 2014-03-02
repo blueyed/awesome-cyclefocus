@@ -34,6 +34,38 @@ local cyclefocus = {
         icon_size = 48,
     },
 
+    naughty_preset_for_offset = {
+        -- Default callback, which will be applied for all offsets.
+        default = function (preset, args)
+            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
+            preset.screen = 1
+
+            local s = preset.screen
+            local wa = capi.screen[s].workarea
+            preset.width = wa.width * 0.618
+        end,
+
+        ["-1"] = function (preset, args)
+            preset.text = cyclefocus.get_object_name(args.client)
+            preset.font = 'sans 10'
+            -- preset.icon_size = 32
+        end,
+        ["0"] = function (preset, args)
+            -- Use get_object_name to handle .name=nil.
+            preset.text = cyclefocus.get_object_name(args.client)
+                    .. " [screen " .. args.client.screen .. "]"
+                    .. " [" .. args.idx .. "/" .. args.total .. "] "
+            -- XXX: Makes awesome crash:
+            -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
+            preset.text = '<b>' .. preset.text .. '</b>'
+        end,
+        ["1"] = function (preset, args)
+            preset.text = cyclefocus.get_object_name(args.client)
+            preset.font = 'sans 10'
+            -- preset.icon_size = 32
+        end
+    },
+
     cycle_filters = {},
 
     -- The filter to ignore clients altogether (get not added to the history stack).
@@ -167,12 +199,13 @@ cyclefocus.cycle = function(startdirection, args)
     -- Internal state.
     local orig_client = capi.client.focus  -- Will be jumped to via Escape (abort).
     local idx = 1                          -- Currently focused client in the stack.
-    local next_notification                -- The notification to be displayed.
+
+    local notifications = {}
 
     --- Helper function to get the next client.
     -- @param direction 1 (forward) or -1 (backward).
     -- @return client or nil
-    local get_next_client = function(direction)
+    local get_next_client = function(direction, idx)
         local startidx = idx
         local nextc
         while true do
@@ -204,7 +237,7 @@ cyclefocus.cycle = function(startdirection, args)
             end
         end
         debug("get_next_client returns: " .. get_object_name(nextc), 3)
-        return nextc
+        return nextc, idx
     end
 
     local first_run = true
@@ -218,8 +251,10 @@ cyclefocus.cycle = function(startdirection, args)
                 awful.client.jumpto(c)
                 history.add(c)
             end
-            if next_notification then
-                naughty.destroy(next_notification)
+            if notifications then
+                for _, v in pairs(notifications) do
+                    naughty.destroy(v)
+                end
             end
             ignore_focus_signal = false
             capi.keygrabber.stop()
@@ -242,7 +277,10 @@ cyclefocus.cycle = function(startdirection, args)
         if event == "release" and key == modifier then
             -- Focus selected client when releasing modifier.
             -- When coming here on first run, the trigger was pressed quick and we need to fetch the next client while exiting.
-            return exit_grabber(first_run and get_next_client(direction) or nextc)
+            if first_run then
+                nextc, idx = get_next_client(direction, idx)
+            end
+            return exit_grabber(nextc)
         end
 
         -- Ignore any "release" events and unexpected keys, except for the first run.
@@ -257,7 +295,7 @@ cyclefocus.cycle = function(startdirection, args)
         end
         first_run = false
 
-        nextc = get_next_client(direction)
+        nextc, idx = get_next_client(direction, idx)
         if not nextc then
             return exit_grabber()
         end
@@ -267,21 +305,62 @@ cyclefocus.cycle = function(startdirection, args)
         -- for _, tag in pairs(nextc:tags()) do
         --     table.insert(tags, tag.name)
         -- end
-        local notification_args = {
+        -- IDEA: use a template for the text, and then create three notification, also for prev/next.
+
+        local do_notification_for_idx_offset = function(offset, client)
             -- TODO: make this configurable using placeholders.
-            text = "[" .. idx .. "/" .. #history.stack .. "] "
-                .. nextc.name .. " [screen " .. nextc.screen .. "]"
-                -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
-                ,
-            preset = awful.util.table.join({
-                icon = gears.surface.load(nextc.icon), -- prevents memory leaking
-            }, cyclefocus.naughty_preset)
-        }
-        -- Replace previous notification, if any.
-        if next_notification then
-            notification_args.replaces_id = next_notification.id
+            local args = {}
+            -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
+
+            -- Get naughty preset from naughty_preset, and callbacks.
+            args.preset = awful.util.table.clone(cyclefocus.naughty_preset)
+
+            -- Callback for offset.
+            local args_for_cb = { client=client, offset=offset, idx=idx, total=#history.stack }
+
+            local preset_for_offset = cyclefocus.naughty_preset_for_offset
+            local preset_cb = preset_for_offset[tostring(offset)]
+            if preset_cb then
+                preset_cb(args.preset, args_for_cb)
+            end
+            -- Callback for all.
+            if preset_for_offset.default then
+                preset_for_offset.default(args.preset, args_for_cb)
+            end
+
+            -- Replace previous notification, if any.
+            if notifications[tostring(offset)] then
+                debug("map_id",0)
+                args.replaces_id = notifications[tostring(offset)].id
+            end
+
+            notifications[tostring(offset)] = naughty.notify({
+                text=args.preset.text,
+                preset=args.preset
+            })
+            debug(notifications[tostring(offset)].id,0)
         end
-        next_notification = naughty.notify(notification_args)
+
+        -- Delete existing notifications, replaces_id does not appear to work. Must be sequential maybe?!
+        if notifications then
+            for _, v in pairs(notifications) do
+                naughty.destroy(v)
+            end
+        end
+        for i=-1, 1 do
+            local _client
+            if i == 0 then
+                _client = nextc
+            else
+                _client = get_next_client(i, idx)
+                if _client == nextc then
+                    _client = false
+                end
+            end
+            if _client then
+                do_notification_for_idx_offset(i, _client)
+            end
+        end
 
         -- Raise or focus next client.
         if cyclefocus.raise_clients then
