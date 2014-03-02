@@ -7,6 +7,13 @@ the most recently used clients (typically known as Alt-Tab).
 It allows to easily filter the list of windows to be cycled through, e.g. by
 screen, tags, window class, name/title etc.
 
+## Screenshot
+
+![Screenshot](screenshot.png)
+
+Please note that the graphical aspect needs to be developed, but since people
+like screenshots…
+
 ## Installation
 
 Create a subdirectory `cyclefocus` in you awesome config directory, e.g.
@@ -221,13 +228,15 @@ The notifications while cycling are displayed using `naughty.notify`.
 This needs to be replaced and/or improved upon.
 The text to be displayed should be made customizable also.
 
-# Bugs and Feedback
+# Bugs, Feedback and Support
 
 You can report bugs and wishes at the [Github issue tracker][].
 
 Pull requests would be awesome! :)
 
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=blueyed&url=https://github.com/blueyed/awesome-cyclefocus&title=awesome-cyclefocus&language=en&tags=github&category=software)
+
+Bitcoin: 16EVhEpXxfNiT93qT2uxo4DsZSHzNdysSp
 
 [awesome window manager]: http://awesome.naquadah.org/
 [Github issue tracker]: https://github.com/blueyed/awesome-cyclefocus/issues
