@@ -121,6 +121,9 @@ client.connect_signal("manage", function (c, startup)
     end
     history.add(c)
 end)
+client.connect_signal("unmanage", function (c)
+    history.delete(c)
+end)
 -- }}}
 
 -- Main function.
