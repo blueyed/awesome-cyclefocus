@@ -8,6 +8,7 @@ local awful        = require('awful')
 local naughty      = require("naughty")
 local table        = table
 local tostring     = tostring
+local gears        = require('gears')
 local capi         = {
 --     tag            = tag,
     client         = client,
@@ -261,7 +262,7 @@ cyclefocus.cycle = function(startdirection, args)
                 -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
                 ,
             preset = awful.util.table.join({
-                icon = nextc.icon,
+                icon = gears.surface.load(nextc.icon), -- prevents memory leaking
             }, cyclefocus.naughty_preset)
         }
         -- Replace previous notification, if any.
