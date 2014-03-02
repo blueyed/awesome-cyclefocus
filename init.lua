@@ -122,10 +122,9 @@ end)
 -- Only manage clients during startup to fill the stack
 -- initially. Later clients are handled via the "focus" signal.
 client.connect_signal("manage", function (c, startup)
-    if not startup then
-        return
+    if startup then
+        history.add(c)
     end
-    history.add(c)
 end)
 client.connect_signal("unmanage", function (c)
     history.delete(c)
