@@ -330,7 +330,6 @@ cyclefocus.cycle = function(startdirection, args)
 
             -- Replace previous notification, if any.
             if notifications[tostring(offset)] then
-                debug("map_id",0)
                 args.replaces_id = notifications[tostring(offset)].id
             end
 
@@ -338,7 +337,6 @@ cyclefocus.cycle = function(startdirection, args)
                 text=args.preset.text,
                 preset=args.preset
             })
-            debug(notifications[tostring(offset)].id,0)
         end
 
         -- Delete existing notifications, replaces_id does not appear to work. Must be sequential maybe?!
