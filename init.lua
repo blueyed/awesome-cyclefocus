@@ -52,7 +52,9 @@ cyclefocus.filters = {
         for _, t in pairs(c:tags()) do
             for _, t2 in pairs(source_c:tags()) do
                 if t == t2 then
-                    cyclefocus.debug("Filter: client shares tag '" .. t.name .. " with " .. c.name)
+                    cyclefocus.debug("Filter: client shares tag '"
+                        .. cyclefocus.get_object_name(t)
+                        .. " with " .. cyclefocus.get_object_name(c))
                     return true
                 end
             end
@@ -77,6 +79,17 @@ local debug = function(s, level)
     })
 end
 cyclefocus.debug = debug  -- Used as reference in the filters above.
+
+local get_object_name = function (o)
+    if not o then
+        return '<no object>'
+    elseif not o.name then
+        return '<no object name>'
+    else
+        return o.name
+    end
+end
+cyclefocus.get_object_name = get_object_name
 -- }}}
 
 
@@ -94,10 +107,11 @@ function history.delete(c)
     end
 end
 function history.add(c)
-    debug("history.add: " .. c.name, 2)
+    -- NOTE: c.name could be nil!
+    debug("history.add: " .. get_object_name(c), 2)
     if cyclefocus.filter_focus_history then
         if not cyclefocus.filter_focus_history(c) then
-            debug("Filtered!" .. c.name, 2)
+            debug("Filtered! " .. get_object_name(c), 2)
             return true
         end
     end
@@ -113,7 +127,7 @@ end
 -- but not when we are cycling through the clients ourselves.
 client.connect_signal("focus", function (c)
     if ignore_focus_signal then
-        debug("Ignoring focus signal: " .. c.name, 3)
+        debug("Ignoring focus signal: " .. get_object_name(c), 3)
         return false
     end
     history.add(c)
@@ -171,7 +185,7 @@ cyclefocus.cycle = function(startdirection, args)
                 if cycle_filters then
                     for _k, filter in pairs(cycle_filters) do
                         if not filter(nextc, args.initiating_client) then
-                            debug("Filtering/skipping client: " .. nextc.name, 3)
+                            debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
                             nextc = nil
                             break
                         end
@@ -188,9 +202,8 @@ cyclefocus.cycle = function(startdirection, args)
                 debug("No (other) client found!", 1)
                 return nil
             end
-            -- debug("Invalid next client: " .. tostring(nextc), 3)
         end
-        debug("get_next_client returns: " .. tostring(nextc), 3)
+        debug("get_next_client returns: " .. get_object_name(nextc), 3)
         return nextc
     end
 
@@ -200,7 +213,7 @@ cyclefocus.cycle = function(startdirection, args)
         -- Helper function to exit out of the keygrabber.
         -- If a client is given, it will be jumped to.
         local exit_grabber = function (c)
-            debug("exit_grabber: " .. tostring(c), 2)
+            debug("exit_grabber: " .. get_object_name(c), 2)
             if c then
                 awful.client.jumpto(c)
                 history.add(c)
