@@ -189,10 +189,42 @@ cyclefocus = {
 
     -- Preset to be used for the notification.
     naughty_preset = {
-        position = 'bottom_left',
+        position = 'top_left',
         timeout = 0,
-        font = "Ubuntu Regular 14",
-        icon_size = 32,
+        font = "sans 14",
+        icon_size = 48,
+    },
+
+    naughty_preset_for_offset = {
+        -- Default callback, which will be applied for all offsets.
+        default = function (preset, args)
+            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
+            preset.screen = 1
+
+            local s = preset.screen
+            local wa = capi.screen[s].workarea
+            preset.width = wa.width * 0.618
+        end,
+
+        ["-1"] = function (preset, args)
+            preset.text = cyclefocus.get_object_name(args.client)
+            preset.font = 'sans 10'
+            -- preset.icon_size = 32
+        end,
+        ["0"] = function (preset, args)
+            -- Use get_object_name to handle .name=nil.
+            preset.text = cyclefocus.get_object_name(args.client)
+                    .. " [screen " .. args.client.screen .. "]"
+                    .. " [" .. args.idx .. "/" .. args.total .. "] "
+            -- XXX: Makes awesome crash:
+            -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
+            preset.text = '<b>' .. preset.text .. '</b>'
+        end,
+        ["1"] = function (preset, args)
+            preset.text = cyclefocus.get_object_name(args.client)
+            preset.font = 'sans 10'
+            -- preset.icon_size = 32
+        end
     },
 
     cycle_filters = {},
@@ -201,9 +233,8 @@ cyclefocus = {
     -- This is different from the cycle_filters.
     filter_focus_history = awful.client.focus.filter,
 
-    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose
+    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
 }
-
 ```
 
 You can change them like this:
