@@ -181,6 +181,19 @@ client.connect_signal("unmanage", function (c)
 end)
 -- }}}
 
+-- Raise a client (does not include focusing).
+-- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
+-- See https://github.com/blueyed/awesome-cyclefocus/issues/6
+-- Based on awful.client.jumpto, without the code for mouse.
+local raise_client = function(c)
+    -- Try to make client visible, this also covers e.g. sticky
+    local t = c:tags()[1]
+    if t and not c:isvisible() then
+        awful.tag.viewonly(t)
+    end
+    c:raise()
+end
+
 -- Main function.
 cyclefocus.cycle = function(startdirection, args)
     local args = args or {}
@@ -251,7 +264,9 @@ cyclefocus.cycle = function(startdirection, args)
         local exit_grabber = function (c)
             debug("exit_grabber: " .. get_object_name(c), 2)
             if c then
-                awful.client.jumpto(c)
+                -- NOTE: awful.client.jumpto(c) resets mouse.
+                capi.client.focus = c
+                raise_client(c)
                 history.add(c)
             end
             if notifications then
@@ -303,21 +318,14 @@ cyclefocus.cycle = function(startdirection, args)
             return exit_grabber()
         end
 
-        -- Raise or focus next client.
-        -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
-        -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
-        -- awful.client.jumpto(nextc)
+        -- Focus client.
         if cyclefocus.focus_clients then
             capi.client.focus = nextc
         end
 
+        -- Raise client.
         if cyclefocus.raise_clients then
-            -- Try to make client visible, this also covers e.g. sticky
-            local t = nextc:tags()[1]
-            if t and not nextc:isvisible() then
-                awful.tag.viewonly(t)
-            end
-            nextc:raise()
+            raise_client(nextc)
         end
 
         if not cyclefocus.display_notifications then
