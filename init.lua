@@ -185,13 +185,12 @@ cyclefocus.cycle = function(startdirection, args)
     local keys = args.keys or {'Tab', 'ISO_Left_Tab'}
     local shift = args.shift or 'Shift'
     -- cycle_filters: different from filter_focus_history!
-    -- NOTE: making a copy here to break the reference, otherwise the default
-    -- would be changed via args.cycle_filter below.
     local cycle_filters = args.cycle_filters or cyclefocus.cycle_filters
 
-    -- Support single filter
+    -- Support single filter.
     if args.cycle_filter then
-        cycle_filters = table.insert(awful.util.table.clone(cycle_filters), args.cycle_filter)
+        cycle_filters = awful.util.table.clone(cycle_filters)
+        table.insert(cycle_filters, args.cycle_filter)
     end
 
     -- Set flag to ignore any focus events while cycling through clients.
