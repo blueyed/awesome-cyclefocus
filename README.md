@@ -182,9 +182,9 @@ The default settings are:
 
 ```lua
 cyclefocus = {
-    -- Should clients be raised during cycling? (overrides focus_clients)
+    -- Should clients be raised during cycling?
     raise_clients = false,
-    -- Should clients be focused during cycling? (overridden by raise_clients)
+    -- Should clients be focused during cycling?
     focus_clients = true,
 
     -- Preset to be used for the notification.
@@ -233,6 +233,9 @@ cyclefocus = {
     -- This is different from the cycle_filters.
     filter_focus_history = awful.client.focus.filter,
 
+    -- Display notifications while cycling?
+    -- WARNING: without raise_clients this will not make sense probably!
+    display_notifications = true,
     debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
 }
 ```

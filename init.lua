@@ -22,9 +22,9 @@ local capi         = {
 -- Configuration. This can be overridden.
 local cyclefocus
 cyclefocus = {
-    -- Should clients be raised during cycling? (overrides focus_clients)
+    -- Should clients be raised during cycling?
     raise_clients = false,
-    -- Should clients be focused during cycling? (overridden by raise_clients)
+    -- Should clients be focused during cycling?
     focus_clients = true,
 
     -- Preset to be used for the notification.
@@ -73,6 +73,9 @@ cyclefocus = {
     -- This is different from the cycle_filters.
     filter_focus_history = awful.client.focus.filter,
 
+    -- Display notifications while cycling?
+    -- WARNING: without raise_clients this will not make sense probably!
+    display_notifications = true,  
     debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
 }
 
@@ -300,6 +303,27 @@ cyclefocus.cycle = function(startdirection, args)
             return exit_grabber()
         end
 
+        -- Raise or focus next client.
+        -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
+        -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
+        -- awful.client.jumpto(nextc)
+        if cyclefocus.focus_clients then
+            capi.client.focus = nextc
+        end
+
+        if cyclefocus.raise_clients then
+            -- Try to make client visible, this also covers e.g. sticky
+            local t = nextc:tags()[1]
+            if t and not nextc:isvisible() then
+                awful.tag.viewonly(t)
+            end
+            nextc:raise()
+        end
+
+        if not cyclefocus.display_notifications then
+            return true
+        end
+
         -- Create notification with index, name and screen.
         -- local tags = {}
         -- for _, tag in pairs(nextc:tags()) do
@@ -307,7 +331,7 @@ cyclefocus.cycle = function(startdirection, args)
         -- end
         -- IDEA: use a template for the text, and then create three notification, also for prev/next.
 
-        local do_notification_for_idx_offset = function(offset, client)
+        local do_notification_for_idx_offset = function(offset, c)  -- {{{
             -- TODO: make this configurable using placeholders.
             local args = {}
             -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
@@ -316,7 +340,7 @@ cyclefocus.cycle = function(startdirection, args)
             args.preset = awful.util.table.clone(cyclefocus.naughty_preset)
 
             -- Callback for offset.
-            local args_for_cb = { client=client, offset=offset, idx=idx, total=#history.stack }
+            local args_for_cb = { client=c, offset=offset, idx=idx, total=#history.stack }
 
             local preset_for_offset = cyclefocus.naughty_preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
@@ -337,7 +361,7 @@ cyclefocus.cycle = function(startdirection, args)
                 text=args.preset.text,
                 preset=args.preset
             })
-        end
+        end  -- }}}
 
         -- Delete existing notifications, replaces_id does not appear to work. Must be sequential maybe?!
         if notifications then
@@ -360,23 +384,6 @@ cyclefocus.cycle = function(startdirection, args)
                 do_notification_for_idx_offset(i, _client)
                 table.insert(had_client, _client)
             end
-        end
-
-        -- Raise or focus next client.
-        -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
-        -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
-        -- awful.client.jumpto(nextc)
-        if cyclefocus.focus_clients then
-            capi.client.focus = nextc
-        end
-
-        if cyclefocus.raise_clients then
-            -- Try to make client visible, this also covers e.g. sticky
-            local t = nextc:tags()[1]
-            if t and not nextc:isvisible() then
-                awful.tag.viewonly(t)
-            end
-            nextc:raise()
         end
 
         -- return false  -- bubble up?!
