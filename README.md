@@ -25,7 +25,7 @@ Then include it from your awesome config file (`~/.config/awesome/rc.lua`),
 somewhere at the beginning:
 
 ```lua
-cyclefocus = require('cyclefocus')
+local cyclefocus = require('cyclefocus')
 ```
 
 ## Keybindings
