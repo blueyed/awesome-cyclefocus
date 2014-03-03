@@ -346,6 +346,7 @@ cyclefocus.cycle = function(startdirection, args)
                 naughty.destroy(v)
             end
         end
+        local had_client = {}  -- Remember displayed clients, to display them only once.
         for i=-1, 1 do
             local _client
             if i == 0 then
@@ -356,8 +357,9 @@ cyclefocus.cycle = function(startdirection, args)
                     _client = false
                 end
             end
-            if _client then
+            if _client and not awful.util.table.hasitem(had_client, _client) then
                 do_notification_for_idx_offset(i, _client)
+                table.insert(had_client, _client)
             end
         end
 
