@@ -363,10 +363,20 @@ cyclefocus.cycle = function(startdirection, args)
         end
 
         -- Raise or focus next client.
+        -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
+        -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
+        -- awful.client.jumpto(nextc)
+        if cyclefocus.focus_clients then
+            capi.client.focus = nextc
+        end
+
         if cyclefocus.raise_clients then
-            awful.client.jumpto(nextc)
-        elseif cyclefocus.focus_clients then
-            client.focus = nextc
+            -- Try to make client visible, this also covers e.g. sticky
+            local t = nextc:tags()[1]
+            if t and not nextc:isvisible() then
+                awful.tag.viewonly(t)
+            end
+            nextc:raise()
         end
 
         -- return false  -- bubble up?!
