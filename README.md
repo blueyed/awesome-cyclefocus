@@ -181,9 +181,9 @@ loading `cyclefocus`:
 The default settings are:
 
 ```lua
-local cyclefocus = {
+cyclefocus = {
     -- Should clients be raised during cycling? (overrides focus_clients)
-    raise_clients = true,
+    raise_clients = false,
     -- Should clients be focused during cycling? (overridden by raise_clients)
     focus_clients = true,
 
