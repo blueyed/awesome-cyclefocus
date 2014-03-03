@@ -20,7 +20,8 @@ local capi         = {
 
 
 -- Configuration. This can be overridden.
-local cyclefocus = {
+local cyclefocus
+cyclefocus = {
     -- Should clients be raised during cycling? (overrides focus_clients)
     raise_clients = true,
     -- Should clients be focused during cycling? (overridden by raise_clients)
