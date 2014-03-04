@@ -14,7 +14,7 @@ local capi         = {
     client         = client,
     keygrabber     = keygrabber,
 --     mousegrabber   = mousegrabber,
---     mouse          = mouse,
+    mouse          = mouse,
     screen         = screen
 }
 
@@ -39,8 +39,9 @@ cyclefocus = {
         -- Default callback, which will be applied for all offsets.
         default = function (preset, args)
             preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
-            preset.screen = 1
+            preset.screen = capi.mouse.screen
 
+            -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
             preset.width = wa.width * 0.618
