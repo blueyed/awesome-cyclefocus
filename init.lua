@@ -40,15 +40,13 @@ cyclefocus = {
     },
 
     naughty_preset_for_offset = {
-        -- Default callback, which will be applied for all offsets.
+        -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
             preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
             preset.screen = capi.mouse.screen
 
             preset.text = preset.text or cyclefocus.get_object_name(args.client)
             preset.font = preset.font or 'sans 10'
-
-            preset.text = args.idx .. ": " .. preset.text
 
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
@@ -239,7 +237,7 @@ cyclefocus.cycle = function(startdirection, args)
 
         local nextc
 
-        debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 3)
+        debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 2)
         for _ = 1, #stack do
             debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
 
@@ -278,7 +276,7 @@ cyclefocus.cycle = function(startdirection, args)
                         filter_result = get_cached_filter_result(filter, nextc, args.initiating_client)
                         if filter_result ~= nil then
                             if not filter_result then
-                                nextc = nil
+                                nextc = false
                                 break
                             end
                         else
@@ -286,7 +284,7 @@ cyclefocus.cycle = function(startdirection, args)
                             set_cached_filter_result(filter, nextc, args.initiating_client, result)
                             if not result then
                                 debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
-                                nextc = nil
+                                nextc = false
                                 break
                             end
                         end
@@ -387,17 +385,17 @@ cyclefocus.cycle = function(startdirection, args)
             -- Get naughty preset from naughty_preset, and callbacks.
             args.preset = awful.util.table.clone(cyclefocus.naughty_preset)
 
-            -- Callback for offset.
+            -- Callback.
             local args_for_cb = { client=c, offset=offset, idx=idx, total=#history.stack }
-
             local preset_for_offset = cyclefocus.naughty_preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
-            if preset_cb then
-                preset_cb(args.preset, args_for_cb)
-            end
             -- Callback for all.
             if preset_for_offset.default then
                 preset_for_offset.default(args.preset, args_for_cb)
+            end
+            -- Callback for offset.
+            if preset_cb then
+                preset_cb(args.preset, args_for_cb)
             end
 
             -- Replace previous notification, if any.
@@ -425,7 +423,7 @@ cyclefocus.cycle = function(startdirection, args)
         local dlist = {}  -- A table with offset => stack index.
 
         dlist[0] = _idx
-        prevnextlist[_idx] = nil
+        prevnextlist[_idx] = false
 
         -- Build dlist for both directions, depending on how many entries should get displayed.
         for _,dir in ipairs({1, -1}) do
@@ -437,7 +435,7 @@ cyclefocus.cycle = function(startdirection, args)
                 if _ then
                     dlist[_i] = _idx
                 end
-                prevnextlist[_idx] = nil
+                prevnextlist[_idx] = false
             end
         end
 
@@ -454,7 +452,7 @@ cyclefocus.cycle = function(startdirection, args)
             local k = awful.util.table.hasitem(prevnextlist, _c)
             if k then
                 -- debug("SHOULD NOT HAPPEN: should be nil", 0)
-                prevnextlist[k] = nil
+                prevnextlist[k] = false
             end
         end
 
