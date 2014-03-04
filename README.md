@@ -187,6 +187,10 @@ cyclefocus = {
     -- Should clients be focused during cycling?
     focus_clients = true,
 
+    -- How many entries should get displayed before and after the current one?
+    display_next_count = 2,
+    display_prev_count = 1,  -- only 1 for prev, prevents jumping (if there is actually only one, with position=top_left).
+
     -- Preset to be used for the notification.
     naughty_preset = {
         position = 'top_left',
@@ -201,6 +205,11 @@ cyclefocus = {
             preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
             preset.screen = capi.mouse.screen
 
+            preset.text = preset.text or cyclefocus.get_object_name(args.client)
+            preset.font = preset.font or 'sans 10'
+
+            preset.text = args.idx .. ": " .. preset.text
+
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
@@ -208,8 +217,6 @@ cyclefocus = {
         end,
 
         ["-1"] = function (preset, args)
-            preset.text = cyclefocus.get_object_name(args.client)
-            preset.font = 'sans 10'
             -- preset.icon_size = 32
         end,
         ["0"] = function (preset, args)
@@ -222,8 +229,6 @@ cyclefocus = {
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
         ["1"] = function (preset, args)
-            preset.text = cyclefocus.get_object_name(args.client)
-            preset.font = 'sans 10'
             -- preset.icon_size = 32
         end
     },

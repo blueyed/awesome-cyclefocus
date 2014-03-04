@@ -27,6 +27,10 @@ cyclefocus = {
     -- Should clients be focused during cycling?
     focus_clients = true,
 
+    -- How many entries should get displayed before and after the current one?
+    display_next_count = 2,
+    display_prev_count = 1,  -- only 1 for prev, prevents jumping (if there is actually only one, with position=top_left).
+
     -- Preset to be used for the notification.
     naughty_preset = {
         position = 'top_left',
@@ -41,6 +45,11 @@ cyclefocus = {
             preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
             preset.screen = capi.mouse.screen
 
+            preset.text = preset.text or cyclefocus.get_object_name(args.client)
+            preset.font = preset.font or 'sans 10'
+
+            preset.text = args.idx .. ": " .. preset.text
+
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
@@ -48,8 +57,6 @@ cyclefocus = {
         end,
 
         ["-1"] = function (preset, args)
-            preset.text = cyclefocus.get_object_name(args.client)
-            preset.font = 'sans 10'
             -- preset.icon_size = 32
         end,
         ["0"] = function (preset, args)
@@ -62,8 +69,6 @@ cyclefocus = {
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
         ["1"] = function (preset, args)
-            preset.text = cyclefocus.get_object_name(args.client)
-            preset.font = 'sans 10'
             -- preset.icon_size = 32
         end
     },
@@ -76,7 +81,7 @@ cyclefocus = {
 
     -- Display notifications while cycling?
     -- WARNING: without raise_clients this will not make sense probably!
-    display_notifications = true,  
+    display_notifications = true,
     debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
 }
 
@@ -86,6 +91,11 @@ cyclefocus.filters = {
     same_screen = function (c, source_c) return c.screen == source_c.screen end,
 
     common_tag  = function (c, source_c)
+        if c == source_c then
+            return true
+        end
+        cyclefocus.debug("common_tag_filter\n"
+            .. cyclefocus.get_object_name(c) .. " <=> " .. cyclefocus.get_object_name(source_c), 2)
         for _, t in pairs(c:tags()) do
             for _, t2 in pairs(source_c:tags()) do
                 if t == t2 then
@@ -101,6 +111,7 @@ cyclefocus.filters = {
 }
 
 local ignore_focus_signal = false  -- Flag to ignore the focus signal internally.
+local filter_result_cache = {}     -- Holds cached filter results.
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
@@ -111,7 +122,7 @@ local debug = function(s, level)
     end
     naughty.notify({
         text = s,
-        timeout = 10,
+        timeout = 30,
         font = "monospace 10",
     })
 end
@@ -119,9 +130,9 @@ cyclefocus.debug = debug  -- Used as reference in the filters above.
 
 local get_object_name = function (o)
     if not o then
-        return '<no object>'
+        return '[no object]'
     elseif not o.name then
-        return '<no object name>'
+        return '[no object name]'
     else
         return o.name
     end
@@ -221,23 +232,63 @@ cyclefocus.cycle = function(startdirection, args)
 
     --- Helper function to get the next client.
     -- @param direction 1 (forward) or -1 (backward).
-    -- @return client or nil
-    local get_next_client = function(direction, idx)
+    -- @return client or nil and current index in stack.
+    local get_next_client = function(direction, idx, stack)
         local startidx = idx
+        local stack = stack or history.stack
+
         local nextc
-        while true do
-            debug('find loop: #' .. idx, 3)
-            idx = awful.util.cycle(#history.stack, idx + direction)
-            nextc = idx and history.stack[idx]
+
+        debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 3)
+        for _ = 1, #stack do
+            debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
+
+            idx = idx + direction
+            if idx < 1 then
+                idx = #stack
+            elseif idx > #stack then
+                idx = 1
+            end
+            nextc = stack[idx]
 
             if nextc then
                 -- Filtering.
                 if cycle_filters then
+                    -- Get and init filter cache data structure.
+                    local get_cached_filter_result = function(f, a, b)
+                        if filter_result_cache[f] == nil then
+                            filter_result_cache[f] = { [a] = { [b] = { } } }
+                            return nil
+                        elseif filter_result_cache[f][a] == nil then
+                            filter_result_cache[f][a] = { [b] = { } }
+                            return nil
+                        elseif filter_result_cache[f][a][b] == nil then
+                            return nil
+                        end
+                        return filter_result_cache[f][a][b]
+                    end
+                    local set_cached_filter_result = function(f, a, b, value)
+                        get_cached_filter_result(f, a, b)  -- init
+
+                        filter_result_cache[f][a][b] = value
+                    end
+
+                    -- Apply filters, while looking up cache.
                     for _k, filter in pairs(cycle_filters) do
-                        if not filter(nextc, args.initiating_client) then
-                            debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
-                            nextc = nil
-                            break
+                        filter_result = get_cached_filter_result(filter, nextc, args.initiating_client)
+                        if filter_result ~= nil then
+                            if not filter_result then
+                                nextc = nil
+                                break
+                            end
+                        else
+                            local result = filter(nextc, args.initiating_client)
+                            set_cached_filter_result(filter, nextc, args.initiating_client, result)
+                            if not result then
+                                debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
+                                nextc = nil
+                                break
+                            end
                         end
                     end
                 end
@@ -246,14 +297,8 @@ cyclefocus.cycle = function(startdirection, args)
                     break
                 end
             end
-
-            -- Abort after having looped through all clients once
-            if not idx or startidx == idx then
-                debug("No (other) client found!", 1)
-                return nil
-            end
         end
-        debug("get_next_client returns: " .. get_object_name(nextc), 3)
+        debug("get_next_client returns: " .. get_object_name(nextc) .. ', idx=' .. idx, 2)
         return nextc, idx
     end
 
@@ -334,13 +379,7 @@ cyclefocus.cycle = function(startdirection, args)
         end
 
         -- Create notification with index, name and screen.
-        -- local tags = {}
-        -- for _, tag in pairs(nextc:tags()) do
-        --     table.insert(tags, tag.name)
-        -- end
-        -- IDEA: use a template for the text, and then create three notification, also for prev/next.
-
-        local do_notification_for_idx_offset = function(offset, c)  -- {{{
+        local do_notification_for_idx_offset = function(offset, c, idx)  -- {{{
             -- TODO: make this configurable using placeholders.
             local args = {}
             -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
@@ -378,24 +417,47 @@ cyclefocus.cycle = function(startdirection, args)
                 naughty.destroy(v)
             end
         end
-        local had_client = {}  -- Remember displayed clients, to display them only once.
-        for i=-1, 1 do
-            local _client
-            if i == 0 then
-                _client = nextc
-            else
-                _client = get_next_client(i, idx)
-                if _client == nextc then
-                    _client = false
+
+        -- Get clients before and after currently selected one.
+        local prevnextlist = awful.util.table.clone(history.stack)  -- Use a copy, entries will get nil'ed.
+        local _idx = idx
+
+        local dlist = {}  -- A table with offset => stack index.
+
+        dlist[0] = _idx
+        prevnextlist[_idx] = nil
+
+        -- Build dlist for both directions, depending on how many entries should get displayed.
+        for _,dir in ipairs({1, -1}) do
+            _idx = dlist[0]
+            local n = dir == 1 and cyclefocus.display_next_count or cyclefocus.display_prev_count
+            for i = 1, n do
+                local _i = i * dir
+                _, _idx = get_next_client(dir, _idx, prevnextlist)
+                if _ then
+                    dlist[_i] = _idx
                 end
-            end
-            if _client and not awful.util.table.hasitem(had_client, _client) then
-                do_notification_for_idx_offset(i, _client)
-                table.insert(had_client, _client)
+                prevnextlist[_idx] = nil
             end
         end
 
-        -- return false  -- bubble up?!
+        -- Sort the offsets.
+        local offsets = {}
+        for n in pairs(dlist) do table.insert(offsets, n) end
+        table.sort(offsets)
+
+        -- Issue the notifications.
+        for _,i in ipairs(offsets) do
+            _idx = dlist[i]
+            do_notification_for_idx_offset(i, history.stack[_idx], _idx)
+            -- Unset client from prevnext list.
+            local k = awful.util.table.hasitem(prevnextlist, _c)
+            if k then
+                -- debug("SHOULD NOT HAPPEN: should be nil", 0)
+                prevnextlist[k] = nil
+            end
+        end
+
         return true
     end)
 end
