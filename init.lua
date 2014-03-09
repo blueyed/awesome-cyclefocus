@@ -29,7 +29,7 @@ cyclefocus = {
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 2,
-    display_prev_count = 1,  -- only 1 for prev, prevents jumping (if there is actually only one, with position=top_left).
+    display_prev_count = 0,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
@@ -71,7 +71,10 @@ cyclefocus = {
         end
     },
 
-    cycle_filters = {},
+    -- Default filters: return false to ignore/hide a client.
+    cycle_filters = {
+        function(c, source_c) return not c.minimized end,
+    },
 
     -- The filter to ignore clients altogether (get not added to the history stack).
     -- This is different from the cycle_filters.
@@ -179,12 +182,8 @@ client.connect_signal("focus", function (c)
     history.add(c)
 end)
 
--- Only manage clients during startup to fill the stack
--- initially. Later clients are handled via the "focus" signal.
 client.connect_signal("manage", function (c, startup)
-    if startup then
-        history.add(c)
-    end
+    history.add(c)
 end)
 client.connect_signal("unmanage", function (c)
     history.delete(c)
@@ -254,6 +253,7 @@ cyclefocus.cycle = function(startdirection, args)
                 if cycle_filters then
                     -- Get and init filter cache data structure.
                     local get_cached_filter_result = function(f, a, b)
+                        local b = b or false  -- handle nil
                         if filter_result_cache[f] == nil then
                             filter_result_cache[f] = { [a] = { [b] = { } } }
                             return nil
@@ -266,8 +266,8 @@ cyclefocus.cycle = function(startdirection, args)
                         return filter_result_cache[f][a][b]
                     end
                     local set_cached_filter_result = function(f, a, b, value)
+                        local b = b or false  -- handle nil
                         get_cached_filter_result(f, a, b)  -- init
-
                         filter_result_cache[f][a][b] = value
                     end
 
