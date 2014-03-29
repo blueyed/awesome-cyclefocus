@@ -19,7 +19,7 @@ local capi         = {
 }
 
 
--- Configuration. This can be overridden.
+-- Configuration. This can be overridden: global or via args to cyclefocus.cycle.
 local cyclefocus
 cyclefocus = {
     -- Should clients be raised during cycling?
@@ -28,36 +28,38 @@ cyclefocus = {
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
-    display_next_count = 2,
+    display_next_count = 5,
     display_prev_count = 0,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
         position = 'top_left',
         timeout = 0,
-        font = "sans 14",
-        icon_size = 48,
     },
 
     naughty_preset_for_offset = {
         -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
-            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
-            preset.screen = capi.mouse.screen
-
+            -- Default font and icon size (gets overwritten for current/0 index).
+            preset.font = 'sans 10'
+            preset.icon_size = 36
             preset.text = preset.text or cyclefocus.get_object_name(args.client)
-            preset.font = preset.font or 'sans 10'
+
+            -- Display the notification on the current screen (mouse).
+            preset.screen = capi.mouse.screen
 
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
             preset.width = wa.width * 0.618
+
+            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
         end,
 
-        ["-1"] = function (preset, args)
-            -- preset.icon_size = 32
-        end,
+        -- Preset for current entry.
         ["0"] = function (preset, args)
+            preset.font = 'sans 14'
+            preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
             preset.text = cyclefocus.get_object_name(args.client)
                     .. " [screen " .. args.client.screen .. "]"
@@ -65,6 +67,11 @@ cyclefocus = {
             -- XXX: Makes awesome crash:
             -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
             preset.text = '<b>' .. preset.text .. '</b>'
+        end,
+
+        -- You can refer to entries by their offset.
+        ["-1"] = function (preset, args)
+            -- preset.icon_size = 32
         end,
         ["1"] = function (preset, args)
             -- preset.icon_size = 32
@@ -89,7 +96,13 @@ cyclefocus = {
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
 cyclefocus.filters = {
     -- Filter clients on the same screen.
-    same_screen = function (c, source_c) return c.screen == source_c.screen end,
+    same_screen = function (c, source_c)
+        return (c.screen or capi.mouse.screen) == source_c.screen
+    end,
+
+    same_class = function (c, source_c)
+        return c.class == source_c.class
+    end,
 
     common_tag  = function (c, source_c)
         if c == source_c then
@@ -122,7 +135,7 @@ local debug = function(s, level)
         return
     end
     naughty.notify({
-        text = s,
+        text = tostring(s),
         timeout = 30,
         font = "monospace 10",
     })
@@ -204,8 +217,8 @@ local raise_client = function(c)
 end
 
 -- Main function.
-cyclefocus.cycle = function(startdirection, args)
-    local args = args or {}
+cyclefocus.cycle = function(startdirection, _args)
+    local args = awful.util.table.join(awful.util.table.clone(cyclefocus), _args)
     local modifier = args.modifier or 'Alt_L'
     local keys = args.keys or {'Tab', 'ISO_Left_Tab'}
     local shift = args.shift or 'Shift'
@@ -324,9 +337,9 @@ cyclefocus.cycle = function(startdirection, args)
         end
 
         debug("grabber: mod: " .. table.concat(mod, ',')
-            .. ", key: " .. key
-            .. ", event: " .. event
-            .. ", modifier: " .. modifier, 3)
+            .. ", key: " .. tostring(key)
+            .. ", event: " .. tostring(event)
+            .. ", modifier: " .. tostring(modifier), 3)
 
         -- Abort on Escape.
         if key == 'Escape' then
@@ -348,7 +361,7 @@ cyclefocus.cycle = function(startdirection, args)
         -- Ignore any "release" events and unexpected keys, except for the first run.
         if not first_run then
             if not awful.util.table.hasitem(keys, key) then
-                debug("Ignoring unexpected key: " .. tostring(key), 2)
+                debug("Ignoring unexpected key: " .. tostring(key), 1)
                 return true
             end
             if event == "release" then
@@ -363,58 +376,48 @@ cyclefocus.cycle = function(startdirection, args)
         end
 
         -- Focus client.
-        if cyclefocus.focus_clients then
+        if args.focus_clients then
             capi.client.focus = nextc
         end
 
         -- Raise client.
-        if cyclefocus.raise_clients then
+        if args.raise_clients then
             raise_client(nextc)
         end
 
-        if not cyclefocus.display_notifications then
+        if not args.display_notifications then
             return true
         end
 
         -- Create notification with index, name and screen.
         local do_notification_for_idx_offset = function(offset, c, idx)  -- {{{
             -- TODO: make this configurable using placeholders.
-            local args = {}
+            local naughty_args = {}
             -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
 
             -- Get naughty preset from naughty_preset, and callbacks.
-            args.preset = awful.util.table.clone(cyclefocus.naughty_preset)
+            naughty_args.preset = awful.util.table.clone(args.naughty_preset)
 
             -- Callback.
             local args_for_cb = { client=c, offset=offset, idx=idx, total=#history.stack }
-            local preset_for_offset = cyclefocus.naughty_preset_for_offset
+            local preset_for_offset = args.naughty_preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
             -- Callback for all.
             if preset_for_offset.default then
-                preset_for_offset.default(args.preset, args_for_cb)
+                preset_for_offset.default(naughty_args.preset, args_for_cb)
             end
             -- Callback for offset.
             if preset_cb then
-                preset_cb(args.preset, args_for_cb)
+                preset_cb(naughty_args.preset, args_for_cb)
             end
 
             -- Replace previous notification, if any.
             if notifications[tostring(offset)] then
-                args.replaces_id = notifications[tostring(offset)].id
+                naughty_args.replaces_id = notifications[tostring(offset)].id
             end
 
-            notifications[tostring(offset)] = naughty.notify({
-                text=args.preset.text,
-                preset=args.preset
-            })
+            notifications[tostring(offset)] = naughty.notify(naughty_args)
         end  -- }}}
-
-        -- Delete existing notifications, replaces_id does not appear to work. Must be sequential maybe?!
-        if notifications then
-            for _, v in pairs(notifications) do
-                naughty.destroy(v)
-            end
-        end
 
         -- Get clients before and after currently selected one.
         local prevnextlist = awful.util.table.clone(history.stack)  -- Use a copy, entries will get nil'ed.
@@ -428,7 +431,7 @@ cyclefocus.cycle = function(startdirection, args)
         -- Build dlist for both directions, depending on how many entries should get displayed.
         for _,dir in ipairs({1, -1}) do
             _idx = dlist[0]
-            local n = dir == 1 and cyclefocus.display_next_count or cyclefocus.display_prev_count
+            local n = dir == 1 and args.display_next_count or args.display_prev_count
             for i = 1, n do
                 local _i = i * dir
                 _, _idx = get_next_client(dir, _idx, prevnextlist)

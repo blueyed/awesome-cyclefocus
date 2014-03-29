@@ -188,38 +188,38 @@ cyclefocus = {
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
-    display_next_count = 2,
-    display_prev_count = 1,  -- only 1 for prev, prevents jumping (if there is actually only one, with position=top_left).
+    display_next_count = 5,
+    display_prev_count = 0,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
         position = 'top_left',
         timeout = 0,
-        font = "sans 14",
-        icon_size = 48,
     },
 
     naughty_preset_for_offset = {
-        -- Default callback, which will be applied for all offsets.
+        -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
-            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
-            preset.screen = capi.mouse.screen
-
+            -- Default font and icon size (gets overwritten for current/0 index).
+            preset.font = 'sans 10'
+            preset.icon_size = 36
             preset.text = preset.text or cyclefocus.get_object_name(args.client)
-            preset.font = preset.font or 'sans 10'
 
-            preset.text = args.idx .. ": " .. preset.text
+            -- Display the notification on the current screen (mouse).
+            preset.screen = capi.mouse.screen
 
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
             preset.width = wa.width * 0.618
+
+            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
         end,
 
-        ["-1"] = function (preset, args)
-            -- preset.icon_size = 32
-        end,
+        -- Preset for current entry.
         ["0"] = function (preset, args)
+            preset.font = 'sans 14'
+            preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
             preset.text = cyclefocus.get_object_name(args.client)
                     .. " [screen " .. args.client.screen .. "]"
@@ -228,12 +228,20 @@ cyclefocus = {
             -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
+
+        -- You can refer to entries by their offset.
+        ["-1"] = function (preset, args)
+            -- preset.icon_size = 32
+        end,
         ["1"] = function (preset, args)
             -- preset.icon_size = 32
         end
     },
 
-    cycle_filters = {},
+    -- Default filters: return false to ignore/hide a client.
+    cycle_filters = {
+        function(c, source_c) return not c.minimized end,
+    },
 
     -- The filter to ignore clients altogether (get not added to the history stack).
     -- This is different from the cycle_filters.
@@ -252,11 +260,26 @@ cyclefocus = require("cyclefocus")
 cyclefocus.debug_level = 2
 ```
 
+You can also use custom settings when calling `cyclefocus.cycle` or
+`cyclefocus.key` via `args`, e.g. to not display notifications when switching
+between clients on the same tag:
+```lua
+cyclefocus.key({ modkey, }, "Tab", 1, {
+    cycle_filters = { cyclefocus.filters.common_tag },
+    display_notifications = false,
+    modifier='Super_L', keys={'Tab', 'ISO_Left_Tab'}
+}),
+cyclefocus.key({ modkey, "Shift", }, "Tab", 1, {
+    cycle_filters = { cyclefocus.filters.common_tag },
+    display_notifications = false,
+    modifier='Super_L', keys={'Tab', 'ISO_Left_Tab'}
+}),
+```
 
 ## Status
 
-This is to be considered experimental: It works for me, but has not been tested
-much yet. Internals, default settings and behavior is likely to change.
+This is to be considered stable: It works for well for me and others.
+Internals, default settings and behavior might still change.
 
 I came up with this while dipping my toes in the waters of awesome. If you have
 problems, please enable `cyclefocus.debug_level` (goes up to 3) and report your
