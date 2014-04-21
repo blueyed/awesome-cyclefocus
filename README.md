@@ -1,3 +1,25 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
+
+- [awesome-cyclefocus](#awesome-cyclefocus)
+	- [Screenshot](#screenshot)
+	- [Installation](#installation)
+	- [Keybindings](#keybindings)
+		- [Example 1: cycle through all windows](#example-1-cycle-through-all-windows)
+		- [Example 2: cycle through windows on the same screen and tag](#example-2-cycle-through-windows-on-the-same-screen-and-tag)
+			- [`cycle_filters`](#cycle_filters)
+			- [Prefefined filters](#prefefined-filters)
+		- [Example 3: cycle through clients with the same class](#example-3-cycle-through-clients-with-the-same-class)
+	- [Reference](#reference)
+		- [Configuration](#configuration)
+			- [<a name="settings"></a>Settings](#<a-name=settings><a>settings)
+	- [Status](#status)
+		- [Notifications](#notifications)
+- [Bugs, Feedback and Support](#bugs-feedback-and-support)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # awesome-cyclefocus
 
 awesome-cyclefocus is a module/plugin for the [awesome window
