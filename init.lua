@@ -196,6 +196,10 @@ client.connect_signal("focus", function (c)
 end)
 
 client.connect_signal("manage", function (c, startup)
+    if ignore_focus_signal then
+        debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
+        return false
+    end
     history.add(c)
 end)
 client.connect_signal("unmanage", function (c)
