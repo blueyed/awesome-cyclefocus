@@ -78,7 +78,8 @@ cyclefocus = {
         end
     },
 
-    -- Default filters: return false to ignore/hide a client.
+    -- Default builtin filters.
+    -- These are meant to get applied always, but you could override them.
     cycle_filters = {
         function(c, source_c) return not c.minimized end,
     },
@@ -90,7 +91,7 @@ cyclefocus = {
     -- Display notifications while cycling?
     -- WARNING: without raise_clients this will not make sense probably!
     display_notifications = true,
-    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
+    debug_level = 0,  -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
 }
 
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
@@ -109,13 +110,13 @@ cyclefocus.filters = {
             return true
         end
         cyclefocus.debug("common_tag_filter\n"
-            .. cyclefocus.get_object_name(c) .. " <=> " .. cyclefocus.get_object_name(source_c), 2)
+            .. cyclefocus.get_object_name(c) .. " <=> " .. cyclefocus.get_object_name(source_c), 3)
         for _, t in pairs(c:tags()) do
             for _, t2 in pairs(source_c:tags()) do
                 if t == t2 then
-                    cyclefocus.debug("Filter: client shares tag '"
+                    cyclefocus.debug('common_tag_filter: client shares tag "'
                         .. cyclefocus.get_object_name(t)
-                        .. " with " .. cyclefocus.get_object_name(c))
+                        .. '" with "' .. cyclefocus.get_object_name(c)..'"', 2)
                     return true
                 end
             end
@@ -129,7 +130,7 @@ local filter_result_cache = {}     -- Holds cached filter results.
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
-local debug = function(s, level)
+cyclefocus.debug = function(s, level)
     local level = level or 1
     if not cyclefocus.debug_level or cyclefocus.debug_level < level then
         return
@@ -140,7 +141,6 @@ local debug = function(s, level)
         font = "monospace 10",
     })
 end
-cyclefocus.debug = debug  -- Used as reference in the filters above.
 
 local get_object_name = function (o)
     if not o then
@@ -169,11 +169,12 @@ function history.delete(c)
     end
 end
 function history.add(c)
-    -- NOTE: c.name could be nil!
-    debug("history.add: " .. get_object_name(c), 2)
+    -- Less verbose debugging during startup/restart.
+    cyclefocus.debug("history.add: " .. get_object_name(c), awesome.startup and 4 or 3)
+
     if cyclefocus.filter_focus_history then
         if not cyclefocus.filter_focus_history(c) then
-            debug("Filtered! " .. get_object_name(c), 2)
+            cyclefocus.debug("Filtered! " .. get_object_name(c), 2)
             return true
         end
     end
@@ -189,7 +190,7 @@ end
 -- but not when we are cycling through the clients ourselves.
 client.connect_signal("focus", function (c)
     if ignore_focus_signal then
-        debug("Ignoring focus signal: " .. get_object_name(c), 3)
+        cyclefocus.debug("Ignoring focus signal: " .. get_object_name(c), 4)
         return false
     end
     history.add(c)
@@ -197,7 +198,7 @@ end)
 
 client.connect_signal("manage", function (c, startup)
     if ignore_focus_signal then
-        debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
+        cyclefocus.debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
         return false
     end
     history.add(c)
@@ -253,9 +254,9 @@ cyclefocus.cycle = function(startdirection, _args)
 
         local nextc
 
-        debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 2)
+        cyclefocus.debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 1)
         for _ = 1, #stack do
-            debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
+            cyclefocus.debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
 
             idx = idx + direction
             if idx < 1 then
@@ -268,7 +269,7 @@ cyclefocus.cycle = function(startdirection, _args)
             if nextc then
                 -- Filtering.
                 if cycle_filters then
-                    -- Get and init filter cache data structure.
+                    -- Get and init filter cache data structure. {{{
                     local get_cached_filter_result = function(f, a, b)
                         local b = b or false  -- handle nil
                         if filter_result_cache[f] == nil then
@@ -286,10 +287,11 @@ cyclefocus.cycle = function(startdirection, _args)
                         local b = b or false  -- handle nil
                         get_cached_filter_result(f, a, b)  -- init
                         filter_result_cache[f][a][b] = value
-                    end
+                    end -- }}}
 
                     -- Apply filters, while looking up cache.
                     for _k, filter in pairs(cycle_filters) do
+                        cyclefocus.debug("Checking filter ".._k.."/"..#cycle_filters..": "..tostring(filter), 4)
                         filter_result = get_cached_filter_result(filter, nextc, args.initiating_client)
                         if filter_result ~= nil then
                             if not filter_result then
@@ -300,7 +302,7 @@ cyclefocus.cycle = function(startdirection, _args)
                             local result = filter(nextc, args.initiating_client)
                             set_cached_filter_result(filter, nextc, args.initiating_client, result)
                             if not result then
-                                debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
+                                cyclefocus.debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
                                 nextc = false
                                 break
                             end
@@ -313,7 +315,7 @@ cyclefocus.cycle = function(startdirection, _args)
                 end
             end
         end
-        debug("get_next_client returns: " .. get_object_name(nextc) .. ', idx=' .. idx, 2)
+        cyclefocus.debug("get_next_client returns: " .. get_object_name(nextc) .. ', idx=' .. idx, 1)
         return nextc, idx
     end
 
@@ -323,7 +325,7 @@ cyclefocus.cycle = function(startdirection, _args)
         -- Helper function to exit out of the keygrabber.
         -- If a client is given, it will be jumped to.
         local exit_grabber = function (c)
-            debug("exit_grabber: " .. get_object_name(c), 2)
+            cyclefocus.debug("exit_grabber: " .. get_object_name(c), 2)
             if c then
                 -- NOTE: awful.client.jumpto(c) resets mouse.
                 capi.client.focus = c
@@ -340,7 +342,7 @@ cyclefocus.cycle = function(startdirection, _args)
             return true
         end
 
-        debug("grabber: mod: " .. table.concat(mod, ',')
+        cyclefocus.debug("grabber: mod: " .. table.concat(mod, ',')
             .. ", key: " .. tostring(key)
             .. ", event: " .. tostring(event)
             .. ", modifier: " .. tostring(modifier), 3)
@@ -365,7 +367,7 @@ cyclefocus.cycle = function(startdirection, _args)
         -- Ignore any "release" events and unexpected keys, except for the first run.
         if not first_run then
             if not awful.util.table.hasitem(keys, key) then
-                debug("Ignoring unexpected key: " .. tostring(key), 1)
+                cyclefocus.debug("Ignoring unexpected key: " .. tostring(key), 1)
                 return true
             end
             if event == "release" then
@@ -458,7 +460,7 @@ cyclefocus.cycle = function(startdirection, _args)
             -- Unset client from prevnext list.
             local k = awful.util.table.hasitem(prevnextlist, _c)
             if k then
-                -- debug("SHOULD NOT HAPPEN: should be nil", 0)
+                -- cyclefocus.debug("SHOULD NOT HAPPEN: should be nil", 0)
                 prevnextlist[k] = false
             end
         end
