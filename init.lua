@@ -329,19 +329,23 @@ cyclefocus.cycle = function(startdirection, _args)
         -- If a client is given, it will be jumped to.
         local exit_grabber = function (c)
             cyclefocus.debug("exit_grabber: " .. get_object_name(c), 2)
+            if notifications then
+                for _, v in pairs(notifications) do
+                    naughty.destroy(v)
+                end
+            end
+
+            capi.keygrabber.stop()
+
             if c then
                 -- NOTE: awful.client.jumpto(c) resets mouse.
                 capi.client.focus = c
                 raise_client(c)
                 history.add(c)
             end
-            if notifications then
-                for _, v in pairs(notifications) do
-                    naughty.destroy(v)
-                end
-            end
+
             ignore_focus_signal = false
-            capi.keygrabber.stop()
+
             return true
         end
 
