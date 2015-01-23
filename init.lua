@@ -126,7 +126,6 @@ cyclefocus.filters = {
 }
 
 local ignore_focus_signal = false  -- Flag to ignore the focus signal internally.
-local filter_result_cache = {}     -- Holds cached filter results.
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
@@ -229,6 +228,8 @@ cyclefocus.cycle = function(startdirection, _args)
     local shift = args.shift or 'Shift'
     -- cycle_filters: different from filter_focus_history!
     local cycle_filters = args.cycle_filters or cyclefocus.cycle_filters
+
+    local filter_result_cache = {}     -- Holds cached filter results.
 
     -- Support single filter.
     if args.cycle_filter then
