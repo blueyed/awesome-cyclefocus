@@ -292,6 +292,7 @@ cyclefocus.cycle = function(startdirection, _args)
                     end -- }}}
 
                     -- Apply filters, while looking up cache.
+                    local filter_result
                     for _k, filter in pairs(cycle_filters) do
                         cyclefocus.debug("Checking filter ".._k.."/"..#cycle_filters..": "..tostring(filter), 4)
                         filter_result = get_cached_filter_result(filter, nextc, args.initiating_client)
@@ -301,9 +302,9 @@ cyclefocus.cycle = function(startdirection, _args)
                                 break
                             end
                         else
-                            local result = filter(nextc, args.initiating_client)
-                            set_cached_filter_result(filter, nextc, args.initiating_client, result)
-                            if not result then
+                            filter_result = filter(nextc, args.initiating_client)
+                            set_cached_filter_result(filter, nextc, args.initiating_client, filter_result)
+                            if not filter_result then
                                 cyclefocus.debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
                                 nextc = false
                                 break
