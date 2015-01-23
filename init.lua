@@ -226,8 +226,9 @@ cyclefocus.cycle = function(startdirection, _args)
     local modifier = args.modifier or 'Alt_L'
     local keys = args.keys or {'Tab', 'ISO_Left_Tab'}
     local shift = args.shift or 'Shift'
-    -- cycle_filters: different from filter_focus_history!
-    local cycle_filters = args.cycle_filters or cyclefocus.cycle_filters
+    -- cycle_filters: merge with defaults from module.
+    local cycle_filters = awful.util.table.join(args.cycle_filters or {},
+        cyclefocus.cycle_filters)
 
     local filter_result_cache = {}     -- Holds cached filter results.
 
