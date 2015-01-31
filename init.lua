@@ -223,6 +223,7 @@ end
 -- Main function.
 cyclefocus.cycle = function(startdirection, _args)
     local args = awful.util.table.join(awful.util.table.clone(cyclefocus), _args)
+    -- The key name of the (last) modifier: this gets used for the "release" event.
     local modifier = args.modifier or 'Alt_L'
     local keys = args.keys or {'Tab', 'ISO_Left_Tab'}
     local shift = args.shift or 'Shift'
@@ -334,25 +335,21 @@ cyclefocus.cycle = function(startdirection, _args)
                     naughty.destroy(v)
                 end
             end
-
             capi.keygrabber.stop()
-
             if c then
                 -- NOTE: awful.client.jumpto(c) resets mouse.
                 capi.client.focus = c
                 raise_client(c)
                 history.add(c)
             end
-
             ignore_focus_signal = false
-
             return true
         end
 
         cyclefocus.debug("grabber: mod: " .. table.concat(mod, ',')
             .. ", key: " .. tostring(key)
             .. ", event: " .. tostring(event)
-            .. ", modifier: " .. tostring(modifier), 3)
+            .. ", modifier_key: " .. tostring(modifier), 3)
 
         -- Abort on Escape.
         if key == 'Escape' then
@@ -482,9 +479,9 @@ function cyclefocus.key(mods, key, startdirection, _args)
     local mods = mods or {modkey} or {"Mod4"}
     local key = key or "Tab"
     local startdirection = startdirection or 1
-    local args = _args or {}
+    local args = awful.util.table.clone(_args) or {}
     args.keys = args.keys or {key}
-    args.mods = args.mods or mods
+    args.modifier = args.modifier or mods[0]
 
     return awful.key(mods, key, function(c)
         args.initiating_client = c  -- only for clientkeys, might be nil!
