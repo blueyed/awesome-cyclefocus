@@ -195,7 +195,7 @@ client.connect_signal("focus", function (c)
     history.add(c)
 end)
 
-client.connect_signal("manage", function (c, startup)
+client.connect_signal("manage", function (c)
     if ignore_focus_signal then
         cyclefocus.debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
         return false
