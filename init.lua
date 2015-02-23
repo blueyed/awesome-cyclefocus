@@ -62,10 +62,11 @@ cyclefocus = {
             preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
             preset.text = cyclefocus.get_object_name(args.client)
-                    .. " [screen " .. args.client.screen .. "]"
-                    .. " [" .. args.idx .. "/" .. args.total .. "] "
-            -- XXX: Makes awesome crash:
-            -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
+            -- Add screen number if there are multiple.
+            if screen.count() > 1 then
+                preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
+            end
+            preset.text = preset.text .. " [" .. args.idx .. "/" .. args.total .. "] "
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
 
