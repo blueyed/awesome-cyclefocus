@@ -156,7 +156,7 @@ cyclefocus.get_object_name = get_object_name
 
 
 -- Internal functions to handle the focus history. {{{
--- Based upon awful.client.focus.history.
+-- Based on awful.client.focus.history.
 local history = {
     stack = {}
 }
@@ -178,7 +178,8 @@ function history.add(c)
             return true
         end
     end
-    -- Remove the client if its in the stack
+
+    -- Remove any existing entries from the stack.
     history.delete(c)
     -- Record the client has latest focused
     table.insert(history.stack, 1, c)
@@ -362,7 +363,8 @@ cyclefocus.cycle = function(startdirection, _args)
 
         if event == "release" and key == modifier then
             -- Focus selected client when releasing modifier.
-            -- When coming here on first run, the trigger was pressed quick and we need to fetch the next client while exiting.
+            -- When coming here on first run, the trigger was pressed quick and
+            -- we need to fetch the next client while exiting.
             if first_run then
                 nextc, idx = get_next_client(direction, idx)
             end
