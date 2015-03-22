@@ -107,6 +107,11 @@ cyclefocus.filters = {
         return c.class == source_c.class
     end,
 
+    -- Only marked clients (via awful.client.mark and .unmark).
+    marked = function (c, source_c)
+        return awful.client.ismarked(c)
+    end,
+
     common_tag  = function (c, source_c)
         if c == source_c then
             return true

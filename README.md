@@ -144,6 +144,15 @@ cyclefocus.filters = {
     -- Filter clients on the same screen.
     same_screen = function (c, source_c) return c.screen == source_c.screen end,
 
+    same_class = function (c, source_c)
+        return c.class == source_c.class
+    end,
+
+    -- Only marked clients (via awful.client.mark and .unmark).
+    marked = function (c, source_c)
+        return awful.client.ismarked(c)
+    end,
+
     common_tag  = function (c, source_c)
         for _, t in pairs(c:tags()) do
             for _, t2 in pairs(source_c:tags()) do
