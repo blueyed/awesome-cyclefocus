@@ -15,7 +15,8 @@ local capi         = {
     keygrabber     = keygrabber,
 --     mousegrabber   = mousegrabber,
     mouse          = mouse,
-    screen         = screen
+    screen         = screen,
+    awesome        = awesome,
 }
 
 
@@ -170,7 +171,7 @@ function history.delete(c)
 end
 function history.add(c)
     -- Less verbose debugging during startup/restart.
-    cyclefocus.debug("history.add: " .. get_object_name(c), awesome.startup and 4 or 3)
+    cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 3)
 
     if cyclefocus.filter_focus_history then
         if not cyclefocus.filter_focus_history(c) then
@@ -190,9 +191,9 @@ end
 -- Add clients that got focused to the history stack,
 -- but not when we are cycling through the clients ourselves.
 client.connect_signal("focus", function (c)
-    if ignore_focus_signal then
+    if ignore_focus_signal or capi.awesome.startup then
         cyclefocus.debug("Ignoring focus signal: " .. get_object_name(c), 4)
-        return false
+        return
     end
     history.add(c)
 end)
