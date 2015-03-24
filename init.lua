@@ -88,6 +88,7 @@ cyclefocus = {
 
     -- The filter to ignore clients altogether (get not added to the history stack).
     -- This is different from the cycle_filters.
+    -- The function should return true / the client if it's ok, nil otherwise.
     filter_focus_history = awful.client.focus.filter,
 
     -- Display notifications while cycling?
@@ -166,6 +167,7 @@ cyclefocus.get_object_name = get_object_name
 local history = {
     stack = {}
 }
+
 function history.delete(c)
     for k, v in ipairs(history.stack) do
         if v == c then
@@ -174,6 +176,7 @@ function history.delete(c)
         end
     end
 end
+
 function history.add(c)
     -- Less verbose debugging during startup/restart.
     cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 3)
@@ -206,10 +209,11 @@ end)
 client.connect_signal("manage", function (c)
     if ignore_focus_signal then
         cyclefocus.debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
-        return false
+        return
     end
     history.add(c)
 end)
+
 client.connect_signal("unmanage", function (c)
     history.delete(c)
 end)
@@ -336,6 +340,7 @@ cyclefocus.cycle = function(startdirection, _args)
     local first_run = true
     local nextc
     capi.keygrabber.run(function(mod, key, event)
+
         -- Helper function to exit out of the keygrabber.
         -- If a client is given, it will be jumped to.
         local exit_grabber = function (c)
