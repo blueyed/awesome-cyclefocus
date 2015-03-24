@@ -219,10 +219,12 @@ end)
 -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
 -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
 -- Based on awful.client.jumpto, without the code for mouse.
+-- Calls awful.tag.viewonly always to update the tag history, also when
+-- the client is visible.
 local raise_client = function(c)
     -- Try to make client visible, this also covers e.g. sticky
     local t = c:tags()[1]
-    if t and not c:isvisible() then
+    if t then
         awful.tag.viewonly(t)
     end
     c:raise()
