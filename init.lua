@@ -38,6 +38,11 @@ cyclefocus = {
         timeout = 0,
     },
 
+    --- Templates for naughty notifications.
+    -- The following arguments are passed to a callback:
+    --  - client: the current client object.
+    --  - idx: index number of current entry in clients list.
+    --  - displayed_list: the list of entries in the list, might be filtered.
     naughty_preset_for_offset = {
         -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
@@ -67,7 +72,7 @@ cyclefocus = {
             if screen.count() > 1 then
                 preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
             end
-            preset.text = preset.text .. " [" .. args.idx .. "/" .. args.total .. "] "
+            preset.text = preset.text .. " [#" .. args.idx .. ", " .. args.count .. "] "
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
 
@@ -416,7 +421,7 @@ cyclefocus.cycle = function(startdirection, _args)
         end
 
         -- Create notification with index, name and screen.
-        local do_notification_for_idx_offset = function(offset, c, idx)  -- {{{
+        local do_notification_for_idx_offset = function(offset, c, idx, displayed_list)  -- {{{
             -- TODO: make this configurable using placeholders.
             local naughty_args = {}
             -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
@@ -425,7 +430,11 @@ cyclefocus.cycle = function(startdirection, _args)
             naughty_args.preset = awful.util.table.clone(args.naughty_preset)
 
             -- Callback.
-            local args_for_cb = { client=c, offset=offset, idx=idx, total=#history.stack }
+            local args_for_cb = {
+                client=c,
+                offset=offset,
+                idx=idx,
+                displayed_list=displayed_list }
             local preset_for_offset = args.naughty_preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
             -- Callback for all.
@@ -476,7 +485,7 @@ cyclefocus.cycle = function(startdirection, _args)
         -- Issue the notifications.
         for _,i in ipairs(offsets) do
             _idx = dlist[i]
-            do_notification_for_idx_offset(i, history.stack[_idx], _idx)
+            do_notification_for_idx_offset(i, history.stack[_idx], _idx, dlist)
             -- Unset client from prevnext list.
             local k = awful.util.table.hasitem(prevnextlist, _c)
             if k then
