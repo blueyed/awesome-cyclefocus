@@ -24,7 +24,7 @@ local capi         = {
 local cyclefocus
 cyclefocus = {
     -- Should clients be raised during cycling?
-    raise_clients = false,
+    raise_clients = true,
     -- Should clients be focused during cycling?
     focus_clients = true,
 
