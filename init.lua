@@ -99,7 +99,12 @@ cyclefocus = {
     -- Display notifications while cycling?
     -- WARNING: without raise_clients this will not make sense probably!
     display_notifications = true,
-    debug_level = 0,  -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
+
+    -- Debugging: messages get printed, and should show up in ~/.xsession-errors etc.
+    -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
+    debug_level = 0,
+    -- Use naughty notifications for debugging messages?
+    debug_use_naughty_notify = 1,
 }
 
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
@@ -142,16 +147,22 @@ local ignore_focus_signal = false  -- Flag to ignore the focus signal internally
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
-cyclefocus.debug = function(s, level)
+cyclefocus.debug = function(msg, level)
     local level = level or 1
     if not cyclefocus.debug_level or cyclefocus.debug_level < level then
         return
     end
-    naughty.notify({
-        text = tostring(s),
-        timeout = 30,
-        font = "monospace 10",
-    })
+
+    if cyclefocus.debug_use_naughty_notify then
+        naughty.notify({
+            -- TODO: use indenting
+            -- text = tostring(msg)..' ['..tostring(level)..']',
+            text = tostring(msg),
+            timeout = 10,
+            font = "monospace 10",
+        })
+    end
+    print("cyclefocus: " .. msg)
 end
 
 local get_object_name = function (o)
@@ -184,7 +195,7 @@ end
 
 function history.add(c)
     -- Less verbose debugging during startup/restart.
-    cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 3)
+    cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 2)
 
     if cyclefocus.filter_focus_history then
         if not cyclefocus.filter_focus_history(c) then
