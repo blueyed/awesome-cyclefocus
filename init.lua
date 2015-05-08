@@ -72,7 +72,7 @@ cyclefocus = {
             if screen.count() > 1 then
                 preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
             end
-            preset.text = preset.text .. " [#" .. args.idx .. ", " .. args.count .. "] "
+            preset.text = preset.text .. " [#" .. args.idx .. "] "
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
 
