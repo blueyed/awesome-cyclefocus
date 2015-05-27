@@ -244,7 +244,7 @@ cyclefocus = {
             local wa = capi.screen[s].workarea
             preset.width = wa.width * 0.618
 
-            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
+            preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
 
         -- Preset for current entry.

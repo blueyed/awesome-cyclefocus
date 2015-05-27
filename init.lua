@@ -8,7 +8,6 @@ local awful        = require('awful')
 local naughty      = require("naughty")
 local table        = table
 local tostring     = tostring
-local gears        = require('gears')
 local capi         = {
 --     tag            = tag,
     client         = client,
@@ -59,7 +58,7 @@ cyclefocus = {
             local wa = capi.screen[s].workarea
             preset.width = wa.width * 0.618
 
-            preset.icon = gears.surface.load(args.client.icon) -- using gears prevents memory leaking
+            preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
 
         -- Preset for current entry.
@@ -106,6 +105,14 @@ cyclefocus = {
     -- Use naughty notifications for debugging messages?
     debug_use_naughty_notify = 1,
 }
+
+local has_gears, gears = pcall(require, 'gears')
+if has_gears then
+    -- Use gears to prevent memory leaking.
+    cyclefocus.icon_loader = gears.surface.load
+else
+    cyclefocus.icon_loader = function(icon) return icon end
+end
 
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
 cyclefocus.filters = {
