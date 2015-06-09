@@ -232,7 +232,7 @@ cyclefocus = {
         -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
-            preset.font = 'sans 10'
+            preset.font = 'sans 8'
             preset.icon_size = 36
             preset.text = preset.text or cyclefocus.get_object_name(args.client)
 
@@ -249,7 +249,7 @@ cyclefocus = {
 
         -- Preset for current entry.
         ["0"] = function (preset, args)
-            preset.font = 'sans 14'
+            preset.font = 'sans 12'
             preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
             preset.text = cyclefocus.get_object_name(args.client)
