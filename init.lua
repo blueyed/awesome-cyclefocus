@@ -8,6 +8,7 @@ local awful        = require('awful')
 local naughty      = require("naughty")
 local table        = table
 local tostring     = tostring
+local floor        = require("math").floor
 local capi         = {
 --     tag            = tag,
     client         = client,
@@ -56,7 +57,7 @@ cyclefocus = {
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
-            preset.width = wa.width * 0.618
+            preset.width = floor(wa.width * 0.618)
 
             preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
