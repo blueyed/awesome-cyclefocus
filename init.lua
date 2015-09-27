@@ -221,7 +221,7 @@ end
 -- Connect to signals. {{{
 -- Add clients that got focused to the history stack,
 -- but not when we are cycling through the clients ourselves.
-client.connect_signal("focus", function (c)
+capi.client.connect_signal("focus", function (c)
     if ignore_focus_signal or capi.awesome.startup then
         cyclefocus.debug("Ignoring focus signal: " .. get_object_name(c), 4)
         return
@@ -229,7 +229,7 @@ client.connect_signal("focus", function (c)
     history.add(c)
 end)
 
-client.connect_signal("manage", function (c)
+capi.client.connect_signal("manage", function (c)
     if ignore_focus_signal then
         cyclefocus.debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
         return
@@ -237,7 +237,7 @@ client.connect_signal("manage", function (c)
     history.add(c)
 end)
 
-client.connect_signal("unmanage", function (c)
+capi.client.connect_signal("unmanage", function (c)
     history.delete(c)
 end)
 -- }}}
