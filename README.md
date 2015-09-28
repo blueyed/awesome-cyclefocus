@@ -40,13 +40,13 @@ like screenshots…
 
 *Requirements:* awesome-cyclefocus requires Awesome 3.5+.
 
-Create a subdirectory `cyclefocus` in you awesome config directory, e.g.
+Create a subdirectory `cyclefocus` in your awesome config directory, e.g.
 
     cd ~/.config/awesome
     git clone https://github.com/blueyed/awesome-cyclefocus cyclefocus
 
-Then include it from your awesome config file (`~/.config/awesome/rc.lua`),
-somewhere at the beginning:
+Then include it from your config file (`~/.config/awesome/rc.lua`), somewhere
+at the beginning:
 
 ```lua
 local cyclefocus = require('cyclefocus')
