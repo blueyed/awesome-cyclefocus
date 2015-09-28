@@ -38,6 +38,8 @@ like screenshots…
 
 ## Installation
 
+*Requirements:* awesome-cyclefocus requires Awesome 3.5+.
+
 Create a subdirectory `cyclefocus` in you awesome config directory, e.g.
 
     cd ~/.config/awesome
