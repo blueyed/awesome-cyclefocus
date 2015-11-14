@@ -110,7 +110,7 @@ cyclefocus = {
     -- Debugging: messages get printed, and should show up in ~/.xsession-errors etc.
     -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
     debug_level = 0,
-    -- Use naughty notifications for debugging messages?
+    -- Use naughty notifications for debugging (additional to printing)?
     debug_use_naughty_notify = 1,
 }
 

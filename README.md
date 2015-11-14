@@ -221,8 +221,8 @@ cyclefocus = {
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
-    display_next_count = 5,
-    display_prev_count = 0,  -- only 0 for prev, works better with naughty notifications.
+    display_next_count = 2,
+    display_prev_count = 2,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
@@ -236,7 +236,7 @@ cyclefocus = {
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
             preset.icon_size = 36
-            preset.text = preset.text or cyclefocus.get_object_name(args.client)
+            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
 
             -- Display the notification on the current screen (mouse).
             preset.screen = capi.mouse.screen
@@ -244,7 +244,7 @@ cyclefocus = {
             -- Set notification width, based on screen/workarea width.
             local s = preset.screen
             local wa = capi.screen[s].workarea
-            preset.width = wa.width * 0.618
+            preset.width = floor(wa.width * 0.618)
 
             preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
@@ -254,11 +254,12 @@ cyclefocus = {
             preset.font = 'sans 12'
             preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
-            preset.text = cyclefocus.get_object_name(args.client)
-                    .. " [screen " .. args.client.screen .. "]"
-                    .. " [" .. args.idx .. "/" .. args.total .. "] "
-            -- XXX: Makes awesome crash:
-            -- preset.text = '<span gravity="auto">' .. preset.text .. '</span>'
+            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
+            -- Add screen number if there are multiple.
+            if screen.count() > 1 then
+                preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
+            end
+            preset.text = preset.text .. " [#" .. args.idx .. "] "
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
 
@@ -271,19 +272,26 @@ cyclefocus = {
         end
     },
 
-    -- Default filters: return false to ignore/hide a client.
+    -- Default builtin filters.
+    -- These are meant to get applied always, but you could override them.
     cycle_filters = {
         function(c, source_c) return not c.minimized end,
     },
 
     -- The filter to ignore clients altogether (get not added to the history stack).
     -- This is different from the cycle_filters.
+    -- The function should return true / the client if it's ok, nil otherwise.
     filter_focus_history = awful.client.focus.filter,
 
     -- Display notifications while cycling?
     -- WARNING: without raise_clients this will not make sense probably!
     display_notifications = true,
-    debug_level = 0,  -- 1: normal debugging, 2: verbose, 3: very verbose.
+
+    -- Debugging: messages get printed, and should show up in ~/.xsession-errors etc.
+    -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
+    debug_level = 0,
+    -- Use naughty notifications for debugging (additional to printing)?
+    debug_use_naughty_notify = 1,
 }
 ```
 
