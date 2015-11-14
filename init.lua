@@ -29,8 +29,8 @@ cyclefocus = {
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
-    display_next_count = 5,
-    display_prev_count = 0,  -- only 0 for prev, works better with naughty notifications.
+    display_next_count = 2,
+    display_prev_count = 2,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
