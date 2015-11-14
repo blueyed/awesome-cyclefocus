@@ -19,6 +19,13 @@ local capi         = {
     awesome        = awesome,
 }
 
+--- Escape pango markup, taken from naughty.
+local escape_markup = function(s)
+    local escape_pattern = "[<>&]"
+    local escape_subs = { ['<'] = "&lt;", ['>'] = "&gt;", ['&'] = "&amp;" }
+    return s:gsub(escape_pattern, escape_subs)
+end
+
 
 -- Configuration. This can be overridden: global or via args to cyclefocus.cycle.
 local cyclefocus
@@ -49,7 +56,7 @@ cyclefocus = {
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
             preset.icon_size = 36
-            preset.text = preset.text or cyclefocus.get_object_name(args.client)
+            preset.text = preset.text or escape_markup(cyclefocus.get_object_name(args.client))
 
             -- Display the notification on the current screen (mouse).
             preset.screen = capi.mouse.screen
@@ -67,7 +74,7 @@ cyclefocus = {
             preset.font = 'sans 12'
             preset.icon_size = 48
             -- Use get_object_name to handle .name=nil.
-            preset.text = cyclefocus.get_object_name(args.client)
+            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
             -- Add screen number if there are multiple.
             if screen.count() > 1 then
                 preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
