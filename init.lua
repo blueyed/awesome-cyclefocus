@@ -56,7 +56,7 @@ cyclefocus = {
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
             preset.icon_size = 36
-            preset.text = preset.text or escape_markup(cyclefocus.get_object_name(args.client))
+            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
 
             -- Display the notification on the current screen (mouse).
             preset.screen = capi.mouse.screen
