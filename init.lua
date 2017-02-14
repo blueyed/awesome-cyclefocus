@@ -347,9 +347,8 @@ cyclefocus.load_on_startup = function()
     ignore_focus_signal = true
     history.load()
     if history.stack[1] then
-        -- bdebug({c=history.stack[1]}, 'load_on_startup::jump')
         showing_client = history.stack[1][1]
-        awful.client.jumpto(showing_client)
+        showing_client:jump_to()
         showing_client = nil
     end
     ignore_focus_signal = false
@@ -403,13 +402,13 @@ end)
 -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
 -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
 -- Based on awful.client.jumpto, without the code for mouse.
--- Calls awful.tag.viewonly always to update the tag history, also when
+-- Calls tag:viewonly always to update the tag history, also when
 -- the client is visible.
 local raise_client = function(c)
     -- Try to make client visible, this also covers e.g. sticky
     local t = c:tags()[1]
     if t then
-        awful.tag.viewonly(t)
+        t:view_only()
     end
     c:raise()
 end
@@ -588,7 +587,7 @@ cyclefocus.show_client = function (c)
         c.ontop = true
 
         -- Make the clients tag visible, if it currently is not.
-        local sel_tags = awful.tag.selectedlist(c.screen)
+        local sel_tags = c.screen.selected_tags
         local c_tag = c.first_tag or c:tags()[1]
         if not awful.util.table.hasitem(sel_tags, c_tag) then
             -- Select only the client's first tag, after de-selecting
@@ -600,7 +599,7 @@ cyclefocus.show_client = function (c)
             local restore_sticky = c.sticky
             c.sticky = true
 
-            for _, t in pairs(awful.tag.gettags(c.screen)) do
+            for _, t in pairs(c.screen.tags) do
                 if t ~= c_tag then
                     t.selected = false
                 end
@@ -663,9 +662,9 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
     -- Save list of selected tags for all screens.
     local restore_tag_selected = {}
-    for s = 1, capi.screen.count() do
+    for s in capi.screen do
         restore_tag_selected[s] = {}
-        for _,t in pairs(awful.tag.gettags(s)) do
+        for _,t in pairs(s.tags) do
             restore_tag_selected[s][t] = t.selected
         end
     end
@@ -824,8 +823,8 @@ cyclefocus.cycle = function(startdirection_or_args, args)
         if key == 'Escape' then
             -- Restore previously selected tags for screen.
             if restore_tag_selected then
-                for s = 1, capi.screen.count() do
-                    for _,t in pairs(awful.tag.gettags(s)) do
+                for s in capi.screen do
+                    for _,t in pairs(s.tags) do
                         t.selected = restore_tag_selected[s][t]
                     end
                 end
@@ -889,11 +888,11 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             wbox:set_bg("#ffffff00")
 
             local container_inner = wibox.layout.align.vertical()
-            local container_layout = wibox.layout.margin(
+            local container_layout = wibox.container.margin(
                 container_inner,
                 container_margin_left_right, container_margin_left_right,
                 container_margin_top_bottom, container_margin_top_bottom)
-            container_layout = wibox.widget.background(container_layout)
+            container_layout = wibox.container.background(container_layout)
             container_layout:set_bg(beautiful.bg_normal..'cc')
 
             -- constraint:set_widget(layout)
@@ -963,7 +962,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                 end
 
                 -- Margin.
-                iconmarginbox = wibox.layout.margin(iconbox)
+                iconmarginbox = wibox.container.margin(iconbox)
                 iconmarginbox:set_margins(icon_margin)
 
                 iconbox:set_resize(false)
@@ -977,13 +976,13 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             textbox:set_font(preset.font)
             textbox:set_wrap("word_char")
             textbox:set_ellipsize("middle")
-            local textbox_margin = wibox.layout.margin(textbox)
+            local textbox_margin = wibox.container.margin(textbox)
             textbox_margin:set_margins(dpi(5))
 
             entry_layout:add(textbox_margin)
-            entry_layout = wibox.layout.margin(entry_layout, dpi(5), dpi(5),
+            entry_layout = wibox.container.margin(entry_layout, dpi(5), dpi(5),
                                                dpi(2), dpi(2))
-            local entry_with_bg = wibox.widget.background(entry_layout)
+            local entry_with_bg = wibox.container.background(entry_layout)
             if offset == 0 then
                 entry_with_bg:set_fg(beautiful.fg_focus)
                 entry_with_bg:set_bg(beautiful.bg_focus)
