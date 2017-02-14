@@ -530,6 +530,13 @@ function cyclefocus.key(mods, key, startdirection, _args)
     local key = key or "Tab"
     local startdirection = startdirection or 1
     local args = awful.util.table.clone(_args) or {}
+    if not args.keys then
+        if key == "Tab" then
+            args.keys = {"Tab", "ISO_Left_Tab"}
+        else
+            args.keys = {key}
+        end
+    end
     args.keys = args.keys or {key}
     args.modifier = args.modifier or mods[0]
 
