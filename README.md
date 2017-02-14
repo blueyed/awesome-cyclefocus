@@ -82,22 +82,20 @@ Setup `modkey+Tab` to cycle through all windows (assuming modkey is
 
 ```lua
 -- modkey+Tab: cycle through all clients.
-awful.key({ modkey,         }, "Tab", function(c)
-        cyclefocus.cycle(1, {modifier="Super_L"})
+awful.key({ modkey }, "Tab", function(c)
+        cyclefocus.cycle({modifier="Super_L"})
 end),
 -- modkey+Shift+Tab: backwards
 awful.key({ modkey, "Shift" }, "Tab", function(c)
-        cyclefocus.cycle(-1, {modifier="Super_L"})
+        cyclefocus.cycle({modifier="Super_L"})
 end),
 ```
 
-The first argument to `cyclefocus.cycle` is the starting direction: 1 means
-backwards in history (incrementing index for the history stack), -1 means to go
-in the opposite direction. `1` is the normal behavior, while `-1` refers to the
-shifted version.
-
-The second argument is a table of optional arguments. We need to pass the
-modifier being used (as seen by awesome's `keygrabber`) here.
+You can pass a table of optional arguments.
+We need to pass the modifier (as seen by awesome's `keygrabber`) here.
+Internally the direction gets set according to if the `Shift` modifier key
+is present, so that the second definition is only necessary to trigger it in
+the opposite direction from the beginning.
 
 See the `init.lua` file for a full reference, or refer to the [settings section
 below](#settings).
@@ -110,7 +108,7 @@ There is a helper function `cyclefocus.key`, which can be used instead of
 ```lua
 -- Alt-Tab: cycle through clients on the same screen.
 -- This must be a clientkeys mapping to have source_c available in the callback.
-cyclefocus.key({ "Mod1", }, "Tab", 1, {
+cyclefocus.key({ "Mod1", }, "Tab", {
     -- cycle_filters as a function callback:
     -- cycle_filters = { function (c, source_c) return c.screen == source_c.screen end },
 
@@ -120,10 +118,11 @@ cyclefocus.key({ "Mod1", }, "Tab", 1, {
 }),
 ```
 
-The first two arguments are the same as with `awful.key`: a list of modifiers and
-the key. Then follows the direction and the list of optional arguments again.
-(here the `modifier` argument is not required, because it is given in the first
-argument).
+The first two arguments are the same as with `awful.key`: a list of modifiers
+and the key. Then the table with optional arguments to `cyclefocus.cycle()`
+follows.
+(here the `modifier` argument is not required, because it gets used from
+the first argument).
 
 #### `cycle_filters`
 

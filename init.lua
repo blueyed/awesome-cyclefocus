@@ -95,7 +95,7 @@ cyclefocus = {
     -- Default builtin filters.
     -- These are meant to get applied always, but you could override them.
     cycle_filters = {
-        function(c, source_c) return not c.minimized end,
+        function(c, source_c) return not c.minimized end,  --luacheck: no unused args
     },
 
     -- EXPERIMENTAL: Only add clients to the history that have been focused by
@@ -149,7 +149,7 @@ cyclefocus.filters = {
     end,
 
     -- Only marked clients (via awful.client.mark and .unmark).
-    marked = function (c, source_c)
+    marked = function (c, source_c)  --luacheck: no unused args
         return awful.client.ismarked(c)
     end,
 
@@ -175,7 +175,7 @@ cyclefocus.filters = {
     -- EXPERIMENTAL:
     -- Skip clients that were added through "focus" signal.
     -- Replaces only_add_internal_focus_changes_to_history.
-    not_through_focus_signal = function (c, source_c)
+    not_through_focus_signal = function (c, source_c)  --luacheck: no unused args
         local attribs = cyclefocus.history.attribs(c)
         return not attribs.source or attribs.source ~= "focus"
     end,
@@ -215,7 +215,7 @@ end
 cyclefocus.get_object_name = get_object_name
 
 
-cyclefocus.get_client_title = function (c, current)
+cyclefocus.get_client_title = function (c, current)  --luacheck: no unused args
     -- Use get_object_name to handle .name=nil.
     local title = cyclefocus.get_object_name(c)
     if #title > 80 then
@@ -262,9 +262,9 @@ end
 
 -- @param filter: a function / boolean to filter clients: true means to add it.
 function history.add(c, filter, append, attribs)
-    local filter = filter or cyclefocus.filter_focus_history
-    local append = append or false
-    local attribs = attribs or {}
+    filter = filter or cyclefocus.filter_focus_history
+    append = append or false
+    attribs = attribs or {}
 
     -- Less verbose debugging during startup/restart.
     cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 2)
@@ -322,11 +322,9 @@ function history.load()
         table.insert(ids, 1, id)
     end
     for _,window in ipairs(ids) do
-        local found = false
         for _,c in pairs(cls) do
             if tonumber(window) == c.window then
                 history.add(c, true, false, {source="load"})
-                found = true
                 break
             end
         end
@@ -457,7 +455,7 @@ end
 --- Callback to get properties for other clients that are visible during cycling.
 -- @client c
 -- @return table
-cyclefocus.decorate_show_client_others = function(c)
+cyclefocus.decorate_show_client_others = function(c)  --luacheck: no unused args
     return {
         -- XXX: too distracting.
         -- opacity = 0.7
@@ -602,7 +600,7 @@ cyclefocus.show_client = function (c)
             local restore_sticky = c.sticky
             c.sticky = true
 
-            for i, t in pairs(awful.tag.gettags(c.screen)) do
+            for _, t in pairs(awful.tag.gettags(c.screen)) do
                 if t ~= c_tag then
                     t.selected = false
                 end
@@ -626,10 +624,16 @@ end
 --- Cached main wibox.
 local wbox
 local wbox_screen
+local layout
 
 -- Main function.
-cyclefocus.cycle = function(startdirection, _args)
-    local args = awful.util.table.join(awful.util.table.clone(cyclefocus), _args)
+cyclefocus.cycle = function(startdirection_or_args, args)
+    if type(startdirection_or_args) == 'number' then
+        awful.util.deprecate('startdirection is not used anymore: pass in args only', {raw=true})
+    else
+        args = startdirection_or_args
+    end
+    args = awful.util.table.join(awful.util.table.clone(cyclefocus), args)
     -- The key name of the (last) modifier: this gets used for the "release" event.
     local modifier = args.modifier or 'Alt_L'
     local keys = args.keys or {'Tab', 'ISO_Left_Tab'}
@@ -656,7 +660,6 @@ cyclefocus.cycle = function(startdirection, _args)
 
     -- Internal state.
     local orig_client = capi.client.focus  -- Will be jumped to via Escape (abort).
-    local idx = 1                          -- Currently focused client in the stack.
 
     -- Save list of selected tags for all screens.
     local restore_tag_selected = {}
@@ -667,9 +670,6 @@ cyclefocus.cycle = function(startdirection, _args)
         end
     end
 
-    local notifications = {}
-    local notifications_by_client = {}
-
     --- Helper function to get the next client.
     -- @param direction 1 (forward) or -1 (backward).
     -- @param idx Current index in the stack.
@@ -679,8 +679,8 @@ cyclefocus.cycle = function(startdirection, _args)
     -- @return client or nil and current index in stack.
     local get_next_client = function(direction, idx, stack, consider_cur_idx)
         local startidx = idx
-        local stack = stack or history.stack
-        local consider_cur_idx = consider_cur_idx or args.focus_clients
+        stack = stack or history.stack
+        consider_cur_idx = consider_cur_idx or args.focus_clients
 
         local nextc
 
@@ -715,7 +715,7 @@ cyclefocus.cycle = function(startdirection, _args)
                     -- Get and init filter cache data structure. {{{
                     -- TODO: move function(s) up?
                     local get_cached_filter_result = function(f, a, b)
-                        local b = b or false  -- handle nil
+                        b = b or false  -- handle nil
                         if filter_result_cache[f] == nil then
                             filter_result_cache[f] = { [a] = { [b] = { } } }
                             return nil
@@ -728,7 +728,7 @@ cyclefocus.cycle = function(startdirection, _args)
                         return filter_result_cache[f][a][b]
                     end
                     local set_cached_filter_result = function(f, a, b, value)
-                        local b = b or false  -- handle nil
+                        b = b or false  -- handle nil
                         get_cached_filter_result(f, a, b)  -- init
                         filter_result_cache[f][a][b] = value
                     end -- }}}
@@ -766,21 +766,20 @@ cyclefocus.cycle = function(startdirection, _args)
 
     local first_run = true
     local nextc
+    local idx = 1  -- Currently focused client in the stack.
 
     -- Get the screen before moving the mouse.
-    local s = awful.screen.focused and awful.screen.focused() or mouse.screen
+    local initial_screen = awful.screen.focused and awful.screen.focused() or mouse.screen
 
     -- Move mouse pointer away to avoid sloppy focus kicking in.
     -- TODO: go to current screen's 0/0 (not total).  Have an option/method for this!
-    local mouse_coords
+    local restore_mouse_coords
     if show_clients then
         restore_mouse_coords = capi.mouse.coords()
         capi.mouse.coords({ x = 0, y = 0 }, true)
     end
 
     capi.keygrabber.run(function(mod, key, event)
-        local start_keygrabber = os.clock()
-
         -- Helper function to exit out of the keygrabber.
         -- If a client is given, it will be jumped to.
         local exit_grabber = function(c)
@@ -883,7 +882,6 @@ cyclefocus.cycle = function(startdirection, _args)
 
         local container_margin_top_bottom = dpi(5)
         local container_margin_left_right = dpi(5)
-        local icon_margin = 5
         if not wbox then
             wbox = wibox({ontop = true })
             wbox._for_screen = mouse.screen
@@ -891,7 +889,7 @@ cyclefocus.cycle = function(startdirection, _args)
             wbox:set_bg("#ffffff00")
 
             local container_inner = wibox.layout.align.vertical()
-            container_layout = wibox.layout.margin(
+            local container_layout = wibox.layout.margin(
                 container_inner,
                 container_margin_left_right, container_margin_left_right,
                 container_margin_top_bottom, container_margin_top_bottom)
@@ -909,8 +907,8 @@ cyclefocus.cycle = function(startdirection, _args)
         end
 
         -- Set geometry always, the screen might have changed.
-        if not wbox_screen or wbox_screen ~= s then
-            wbox_screen = s
+        if not wbox_screen or wbox_screen ~= initial_screen then
+            wbox_screen = initial_screen
             local wa = screen[wbox_screen].workarea
             local w = math.ceil(wa.width * 0.618)
             wbox:geometry({
@@ -923,19 +921,14 @@ cyclefocus.cycle = function(startdirection, _args)
         local max_icon_size = 48
 
         -- Create entry with index, name and screen.
-        local do_notification_for_idx_offset = function(offset, c, idx, displayed_list)  -- {{{
-            -- TODO: make this configurable using placeholders.
-            local naughty_args = {}
-            -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
-
-            -- Get naughty preset from naughty_preset, and callbacks.
+        local display_entry_for_idx_offset = function(offset, c, _idx, displayed_list)  -- {{{
             local preset = awful.util.table.clone(args.naughty_preset)
 
             -- Callback.
             local args_for_cb = {
                 client=c,
                 offset=offset,
-                idx=idx,
+                idx=_idx,
                 displayed_list=displayed_list }
             local preset_for_offset = args.preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
@@ -948,19 +941,16 @@ cyclefocus.cycle = function(startdirection, _args)
                 preset_cb(preset, args_for_cb)
             end
 
-            local entrybox = wibox({})
             -- local entry_layout = wibox.layout.flex.horizontal()
             local entry_layout = wibox.layout.fixed.horizontal()
 
             -- From naughty.
             local icon = preset.icon
-            local icon_margin = icon_margin
+            local icon_margin = 5
             local iconmarginbox
             if icon then
-                -- surface.load_uncached(icon)
-                local surface = require("gears.surface")
                 local cairo = require("lgi").cairo
-                iconbox = wibox.widget.imagebox()
+                local iconbox = wibox.widget.imagebox()
                 local icon_size = preset.icon_size
                 if icon_size then
                     local scaled = cairo.ImageSurface(cairo.Format.ARGB32, icon_size, icon_size)
@@ -978,7 +968,6 @@ cyclefocus.cycle = function(startdirection, _args)
 
                 iconbox:set_resize(false)
                 iconbox:set_image(icon)
-                icon_h = icon:get_height()
 
                 entry_layout:add(iconmarginbox)
             end
@@ -988,7 +977,7 @@ cyclefocus.cycle = function(startdirection, _args)
             textbox:set_font(preset.font)
             textbox:set_wrap("word_char")
             textbox:set_ellipsize("middle")
-            textbox_margin = wibox.layout.margin(textbox)
+            local textbox_margin = wibox.layout.margin(textbox)
             textbox_margin:set_margins(dpi(5))
 
             entry_layout:add(textbox_margin)
@@ -1043,19 +1032,12 @@ cyclefocus.cycle = function(startdirection, _args)
         for n in pairs(dlist) do table.insert(offsets, n) end
         table.sort(offsets)
 
-        -- Issue the notifications.
-        local start = os.clock()
+        -- Display the wibox.
         for _,i in ipairs(offsets) do
             _idx = dlist[i]
-            do_notification_for_idx_offset(i, history.stack[_idx][1], _idx, dlist)
-            -- Unset client from prevnext list.
-            local k = awful.util.table.hasitem(prevnextlist, _c)
-            if k then
-                -- cyclefocus.debug("SHOULD NOT HAPPEN: should be nil", 0)
-                prevnextlist[k] = false
-            end
+            display_entry_for_idx_offset(i, history.stack[_idx][1], _idx, dlist)
         end
-        local wa = screen[s].workarea
+        local wa = screen[initial_screen].workarea
         local h = wbox_height + container_margin_top_bottom*2
         wbox:geometry({
             height = h,
@@ -1068,11 +1050,15 @@ end
 
 
 -- A helper method to wrap awful.key.
-function cyclefocus.key(mods, key, startdirection, _args)
-    local mods = mods or {modkey} or {"Mod4"}
-    local key = key or "Tab"
-    local startdirection = startdirection or 1
-    local args = awful.util.table.clone(_args) or {}
+function cyclefocus.key(mods, key, startdirection_or_args, args)
+    mods = mods or {modkey} or {"Mod4"}
+    key = key or "Tab"
+    if type(startdirection_or_args) == 'number' then
+        awful.util.deprecate('startdirection is not used anymore: pass in mods, key, args', {raw=true})
+    else
+        args = startdirection_or_args
+    end
+    args = awful.util.table.clone(args) or {}
     if not args.keys then
         if key == "Tab" then
             args.keys = {"Tab", "ISO_Left_Tab"}
@@ -1085,7 +1071,7 @@ function cyclefocus.key(mods, key, startdirection, _args)
 
     return awful.key(mods, key, function(c)
         args.initiating_client = c  -- only for clientkeys, might be nil!
-        cyclefocus.cycle(startdirection, args)
+        cyclefocus.cycle(args)
     end)
 end
 
