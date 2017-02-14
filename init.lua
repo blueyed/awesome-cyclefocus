@@ -18,6 +18,10 @@ local capi         = {
     screen         = screen,
     awesome        = awesome,
 }
+local wibox        = require("wibox")
+
+local xresources = require("beautiful").xresources
+local dpi = xresources and xresources.apply_dpi or function() end
 
 --- Escape pango markup, taken from naughty.
 local escape_markup = function(s)
@@ -30,14 +34,18 @@ end
 -- Configuration. This can be overridden: global or via args to cyclefocus.cycle.
 local cyclefocus
 cyclefocus = {
-    -- Should clients be raised during cycling?
-    raise_clients = true,
+    -- Should clients be shown during cycling?  This should be a function,
+    -- which receives a client object, and can make use of
+    -- cyclefocus.show_client (the default implementation).
+    -- Use false to disable showing clients.
+    show_clients = true,
     -- Should clients be focused during cycling?
+    -- This is required for the tasklist to highlight the selected entry.
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
-    display_next_count = 2,
-    display_prev_count = 2,  -- only 0 for prev, works better with naughty notifications.
+    display_next_count = 3,
+    display_prev_count = 3,  -- only 0 for prev, works better with naughty notifications.
 
     -- Preset to be used for the notification.
     naughty_preset = {
@@ -50,21 +58,13 @@ cyclefocus = {
     --  - client: the current client object.
     --  - idx: index number of current entry in clients list.
     --  - displayed_list: the list of entries in the list, might be filtered.
-    naughty_preset_for_offset = {
+    preset_for_offset = {
         -- Default callback, which will be applied for all offsets (first).
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
             preset.icon_size = 36
-            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
-
-            -- Display the notification on the current screen (mouse).
-            preset.screen = capi.mouse.screen
-
-            -- Set notification width, based on screen/workarea width.
-            local s = preset.screen
-            local wa = capi.screen[s].workarea
-            preset.width = floor(wa.width * 0.618)
+            preset.text = escape_markup(cyclefocus.get_client_title(args.client, false))
 
             preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
@@ -73,30 +73,45 @@ cyclefocus = {
         ["0"] = function (preset, args)
             preset.font = 'sans 12'
             preset.icon_size = 48
-            -- Use get_object_name to handle .name=nil.
-            preset.text = escape_markup(cyclefocus.get_object_name(args.client))
+            preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there are multiple.
             if screen.count() > 1 then
-                preset.text = preset.text .. " [screen " .. args.client.screen .. "]"
+                preset.text = preset.text .. " [screen " .. tostring(args.client.screen.index) .. "]"
             end
             preset.text = preset.text .. " [#" .. args.idx .. "] "
             preset.text = '<b>' .. preset.text .. '</b>'
         end,
 
         -- You can refer to entries by their offset.
-        ["-1"] = function (preset, args)
-            -- preset.icon_size = 32
-        end,
-        ["1"] = function (preset, args)
-            -- preset.icon_size = 32
-        end
+        -- ["-1"] = function (preset, args)
+        --     -- preset.icon_size = 32
+        -- end,
+        -- ["1"] = function (preset, args)
+        --     -- preset.icon_size = 32
+        -- end
     },
+    -- naughty_preset_for_offset = cyclefocus.preset,  -- DEPRECATED
 
     -- Default builtin filters.
     -- These are meant to get applied always, but you could override them.
     cycle_filters = {
         function(c, source_c) return not c.minimized end,
     },
+
+    -- EXPERIMENTAL: Only add clients to the history that have been focused by
+    -- cyclefocus.
+    -- This allows to switch clients using other methods, but those are then
+    -- not added to cyclefocus' internal history.
+    -- The get_next_client function will then first consider the most recent
+    -- entry in the history stack, if it's not focused currently.
+    --
+    -- You can use cyclefocus.history.add to manually add an entry, or
+    -- cyclefocus.history.append if you want to add it to the end of the stack.
+    -- This might be useful in a request::activate signal handler.
+    -- XXX: needs to be also handled in request::activate then probably.
+    -- TODO: make this configurable during runtime of the binding, e.g. by
+    --       flagging entries in the stack or using different stacks.
+    -- only_add_internal_focus_changes_to_history = true,
 
     -- The filter to ignore clients altogether (get not added to the history stack).
     -- This is different from the cycle_filters.
@@ -155,15 +170,24 @@ cyclefocus.filters = {
             end
         end
         return false
-    end
+    end,
+
+    -- EXPERIMENTAL:
+    -- Skip clients that were added through "focus" signal.
+    -- Replaces only_add_internal_focus_changes_to_history.
+    not_through_focus_signal = function (c, source_c)
+        local attribs = cyclefocus.history.attribs(c)
+        return not attribs.source or attribs.source ~= "focus"
+    end,
 }
 
 local ignore_focus_signal = false  -- Flag to ignore the focus signal internally.
+local showing_client
 
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
 cyclefocus.debug = function(msg, level)
-    local level = level or 1
+    level = level or 1
     if not cyclefocus.debug_level or cyclefocus.debug_level < level then
         return
     end
@@ -189,6 +213,16 @@ local get_object_name = function (o)
     end
 end
 cyclefocus.get_object_name = get_object_name
+
+
+cyclefocus.get_client_title = function (c, current)
+    -- Use get_object_name to handle .name=nil.
+    local title = cyclefocus.get_object_name(c)
+    if #title > 80 then
+        title = title:sub(1, 80) .. '…'
+    end
+    return title
+end
 -- }}}
 
 
@@ -198,21 +232,45 @@ local history = {
     stack = {}
 }
 
+--- Remove a client from the history stack.
+-- @tparam table Client.
 function history.delete(c)
+    local k = history._get_key(c)
+    if k then
+        table.remove(history.stack, k)
+    end
+end
+
+function history._get_key(c)
     for k, v in ipairs(history.stack) do
-        if v == c then
-            table.remove(history.stack, k)
-            break
+        if v[1] == c then
+            return k
         end
     end
 end
 
-function history.add(c)
+function history.attribs(c)
+    local k = history._get_key(c)
+    if k then
+        return history.stack[k][2]
+    end
+end
+
+function history.clear()
+    history.stack = {}
+end
+
+-- @param filter: a function / boolean to filter clients: true means to add it.
+function history.add(c, filter, append, attribs)
+    local filter = filter or cyclefocus.filter_focus_history
+    local append = append or false
+    local attribs = attribs or {}
+
     -- Less verbose debugging during startup/restart.
     cyclefocus.debug("history.add: " .. get_object_name(c), capi.awesome.startup and 4 or 2)
 
-    if cyclefocus.filter_focus_history then
-        if not cyclefocus.filter_focus_history(c) then
+    if filter and type(filter) == "function" then
+        if not filter(c) then
             cyclefocus.debug("Filtered! " .. get_object_name(c), 2)
             return true
         end
@@ -220,9 +278,88 @@ function history.add(c)
 
     -- Remove any existing entries from the stack.
     history.delete(c)
-    -- Record the client has latest focused
-    table.insert(history.stack, 1, c)
+
+    if append then
+        table.insert(history.stack, {c, attribs})
+    else
+        table.insert(history.stack, 1, {c, attribs})
+    end
+
+    -- Manually add it to awesome's internal history (where we've removed the
+    -- signal from).
+    awful.client.focus.history.add(c)
 end
+
+function history.movetotop(c)
+    local attribs = history.attribs(c)
+    history.add(c, true, false, attribs)
+end
+
+function history.append(c, filter, attribs)
+    return history.add(c, filter, true, attribs)
+end
+
+--- Save the history into a X property.
+function history.persist()
+    local ids = {}
+    for _, v in ipairs(history.stack) do
+        table.insert(ids, v[1].window)
+    end
+    local xprop = table.concat(ids, " ")
+    capi.awesome.set_xproperty('awesome.cyclefocus.history', xprop)
+end
+
+--- Load history from the X property.
+function history.load()
+    local xprop = capi.awesome.get_xproperty('awesome.cyclefocus.history')
+    if not xprop or xprop == "" then
+        return
+    end
+
+    local cls = capi.client.get()
+    local ids = {}
+    for id in string.gmatch(xprop, "%S+") do
+        table.insert(ids, 1, id)
+    end
+    for _,window in ipairs(ids) do
+        local found = false
+        for _,c in pairs(cls) do
+            if tonumber(window) == c.window then
+                history.add(c, true, false, {source="load"})
+                found = true
+                break
+            end
+        end
+    end
+end
+
+-- Persist history when restarting awesome.
+capi.awesome.register_xproperty('awesome.cyclefocus.history', 'string')
+capi.awesome.connect_signal("exit", function(restarting)
+    ignore_focus_signal = true
+    if restarting then
+        history.persist()
+    end
+end)
+
+-- On startup / restart: load the history and jump to the last focused client.
+cyclefocus.load_on_startup = function()
+    capi.awesome.disconnect_signal("refresh", cyclefocus.load_on_startup)
+
+    ignore_focus_signal = true
+    history.load()
+    if history.stack[1] then
+        -- bdebug({c=history.stack[1]}, 'load_on_startup::jump')
+        showing_client = history.stack[1][1]
+        awful.client.jumpto(showing_client)
+        showing_client = nil
+    end
+    ignore_focus_signal = false
+end
+capi.awesome.connect_signal("refresh", cyclefocus.load_on_startup)
+
+-- Export it. At least history.add should be.
+cyclefocus.history = history
 -- }}}
 
 -- Connect to signals. {{{
@@ -233,15 +370,30 @@ capi.client.connect_signal("focus", function (c)
         cyclefocus.debug("Ignoring focus signal: " .. get_object_name(c), 4)
         return
     end
-    history.add(c)
+    history.add(c, nil, nil, {source="focus"})
 end)
+
+-- Disable awesome's internal history handler to handle `ignore_focus_signal`.
+-- https://github.com/awesomeWM/awesome/pull/906.
+if awful.client.focus.history.disable_tracking then
+    awful.client.focus.history.disable_tracking()
+else
+    capi.client.disconnect_signal("focus", awful.client.focus.history.add)
+end
 
 capi.client.connect_signal("manage", function (c)
     if ignore_focus_signal then
         cyclefocus.debug("Ignoring focus signal (manage): " .. get_object_name(c), 2)
         return
     end
-    history.add(c)
+
+    -- During startup: append any clients, to make them known,
+    -- but not override history.load etc.
+    if capi.awesome.startup then
+        history.append(c)
+    else
+        history.add(c, nil, false, {source="manage"})
+    end
 end)
 
 capi.client.connect_signal("unmanage", function (c)
@@ -264,6 +416,217 @@ local raise_client = function(c)
     c:raise()
 end
 
+
+-- Keep track of the client where "ontop" needs to be restored, and forget
+-- about it in "unmanage", to avoid an "invalid object" error.
+-- Ref: https://github.com/awesomeWM/awesome/issues/110
+local restore_ontop_c
+local restore_callback_show_client
+local show_client_restore_client_props = {}
+client.connect_signal("unmanage", function (c)
+    if restore_ontop_c and c == restore_ontop_c[1] then
+        restore_ontop_c = nil
+    end
+    if c == restore_callback_show_client then
+        restore_callback_show_client = nil
+    end
+    if c == showing_client then
+        showing_client = nil
+    end
+
+    if show_client_restore_client_props[c] then
+        show_client_restore_client_props[c] = nil
+    end
+end)
+
+
+local beautiful = require("beautiful")
+
+--- Callback to get properties for clients that are shown during cycling.
+-- @client c
+-- @return table
+cyclefocus.decorate_show_client = function(c)
+    return {
+        -- border_color = beautiful.fg_focus,
+        border_color = beautiful.border_focus,
+        border_width = c.border_width or 1,
+        -- XXX: changes layout / triggers resizes.
+        -- border_width = 10,
+    }
+end
+--- Callback to get properties for other clients that are visible during cycling.
+-- @client c
+-- @return table
+cyclefocus.decorate_show_client_others = function(c)
+    return {
+        -- XXX: too distracting.
+        -- opacity = 0.7
+    }
+end
+
+local show_client_apply_props = {}
+
+local show_client_apply_props_others = {}
+local show_client_restore_client_props_others = {}
+
+local callback_show_client_lock
+local decorate_if_showing_client = function (c)
+    if c == showing_client then
+        cyclefocus.callback_show_client(c)
+    end
+end
+-- A table with property callbacks.  Could be merged with decorate_if_showing_client.
+local update_show_client_restore_client_props = {}
+--- Callback when a client gets shown during cycling.
+-- This can be overridden itself, but it's meant to be configured through
+-- decorate_show_client instead.
+-- @client c
+-- @param boolean Restore the previous state?
+cyclefocus.callback_show_client = function (c, restore)
+    if callback_show_client_lock then return end
+    callback_show_client_lock = true
+
+    if restore then
+        -- Restore all saved properties.
+        if show_client_restore_client_props[c] then
+            -- Disconnect signals.
+            for k,_ in pairs(show_client_restore_client_props[c]) do
+                client.disconnect_signal("property::" .. k, decorate_if_showing_client)
+                client.disconnect_signal("property::" .. k, update_show_client_restore_client_props[c][k])
+            end
+
+            for k,v in pairs(show_client_restore_client_props[c]) do
+                c[k] = v
+            end
+
+            -- Restore properties for other clients.
+            for _c,props in pairs(show_client_restore_client_props_others[c]) do
+                for k,v in pairs(props) do
+                    -- XXX: might have an "invalid object" here!
+                    _c[k] = v
+                end
+            end
+
+            show_client_apply_props[c] = nil
+            show_client_restore_client_props[c] = nil
+            show_client_restore_client_props_others[c] = nil
+        end
+    else
+        -- Save orig settings on first call.
+        local first_call = not show_client_restore_client_props[c]
+        if first_call then
+            show_client_restore_client_props[c] = {}
+            show_client_apply_props[c] = {}
+
+            -- Get props to apply and store original values.
+            show_client_apply_props[c] = cyclefocus.decorate_show_client(c)
+            update_show_client_restore_client_props[c] = {}
+            for k,_ in pairs(show_client_apply_props[c]) do
+                show_client_restore_client_props[c][k] = c[k]
+            end
+
+            -- Get props for other clients and store original values.
+            -- TODO: handle all screens?!
+            show_client_apply_props_others[c] = cyclefocus.decorate_show_client_others(c)
+            show_client_restore_client_props_others[c] = {}
+            for s in capi.screen do
+                for _,_c in pairs(awful.client.visible(s)) do
+                    if _c ~= c then
+                        show_client_restore_client_props_others[c][_c] = {}
+                        for k,_ in pairs(show_client_apply_props_others[c]) do
+                            show_client_restore_client_props_others[c][_c][k] = _c[k]
+                        end
+                    end
+                end
+            end
+        end
+        -- Apply props from callback.
+        for k,v in pairs(show_client_apply_props[c]) do
+            c[k] = v
+        end
+        -- Apply props for other clients.
+        for _c,_ in pairs(show_client_restore_client_props_others[c]) do
+            for k,v in pairs(show_client_apply_props_others[c]) do
+                _c[k] = v  -- see: XXX_1
+            end
+        end
+
+        if first_call then
+            for k,_ in pairs(show_client_apply_props[c]) do
+                client.connect_signal("property::" .. k, decorate_if_showing_client)
+
+                -- Update client props to be restored during showing a client,
+                -- e.g. border_color from focus signals.
+                update_show_client_restore_client_props[c][k] = function()
+                    show_client_restore_client_props[c][k] = c[k]
+                end
+                client.connect_signal("property::" .. k, update_show_client_restore_client_props[c][k])
+            end
+            -- TODO: merge with above; also disconnect on restore.
+            -- for k,v in pairs(show_client_apply_props_others[c]) do
+            --     client.connect_signal("property::" .. k, decorate_if_showing_client)
+            -- end
+        end
+    end
+
+    callback_show_client_lock = false
+end
+
+-- Helper function to restore state of the temporarily selected client.
+cyclefocus.show_client = function (c)
+    showing_client = c
+
+    if c then
+        if restore_callback_show_client then
+            cyclefocus.callback_show_client(restore_callback_show_client, true)
+        end
+        restore_callback_show_client = c
+
+        -- (Re)store ontop property.
+        if restore_ontop_c then
+            restore_ontop_c[1].ontop = restore_ontop_c[2]
+        end
+        restore_ontop_c = {c, c.ontop}
+        c.ontop = true
+
+        -- Make the clients tag visible, if it currently is not.
+        local sel_tags = awful.tag.selectedlist(c.screen)
+        local c_tag = c.first_tag or c:tags()[1]
+        if not awful.util.table.hasitem(sel_tags, c_tag) then
+            -- Select only the client's first tag, after de-selecting
+            -- all others.
+
+            -- Make the client sticky temporarily, so it will be
+            -- considered visbile internally.
+            -- NOTE: this is done for client_maybevisible (used by autofocus).
+            local restore_sticky = c.sticky
+            c.sticky = true
+
+            for i, t in pairs(awful.tag.gettags(c.screen)) do
+                if t ~= c_tag then
+                    t.selected = false
+                end
+            end
+            c_tag.selected = true
+
+            -- Restore.
+            c.sticky = restore_sticky
+        end
+        cyclefocus.callback_show_client(c, false)
+
+    else  -- No client provided, restore only.
+        if restore_ontop_c then
+            restore_ontop_c[1].ontop = restore_ontop_c[2]
+        end
+        cyclefocus.callback_show_client(restore_callback_show_client, true)
+        showing_client = nil
+    end
+end
+
+--- Cached main wibox.
+local wbox
+local wbox_screen
+
 -- Main function.
 cyclefocus.cycle = function(startdirection, _args)
     local args = awful.util.table.join(awful.util.table.clone(cyclefocus), _args)
@@ -276,6 +639,11 @@ cyclefocus.cycle = function(startdirection, _args)
         cyclefocus.cycle_filters)
 
     local filter_result_cache = {}     -- Holds cached filter results.
+
+    local show_clients = args.show_clients
+    if show_clients and type(show_clients) ~= 'function' then
+        show_clients = cyclefocus.show_client
+    end
 
     -- Support single filter.
     if args.cycle_filter then
@@ -290,33 +658,62 @@ cyclefocus.cycle = function(startdirection, _args)
     local orig_client = capi.client.focus  -- Will be jumped to via Escape (abort).
     local idx = 1                          -- Currently focused client in the stack.
 
+    -- Save list of selected tags for all screens.
+    local restore_tag_selected = {}
+    for s = 1, capi.screen.count() do
+        restore_tag_selected[s] = {}
+        for _,t in pairs(awful.tag.gettags(s)) do
+            restore_tag_selected[s][t] = t.selected
+        end
+    end
+
     local notifications = {}
+    local notifications_by_client = {}
 
     --- Helper function to get the next client.
     -- @param direction 1 (forward) or -1 (backward).
+    -- @param idx Current index in the stack.
+    -- @param stack Current stack (default: history.stack).
+    -- @param consider_cur_idx Also look at the current idx, and consider it
+    --                         when it's not focused.
     -- @return client or nil and current index in stack.
-    local get_next_client = function(direction, idx, stack)
+    local get_next_client = function(direction, idx, stack, consider_cur_idx)
         local startidx = idx
         local stack = stack or history.stack
+        local consider_cur_idx = consider_cur_idx or args.focus_clients
 
         local nextc
 
-        cyclefocus.debug('get_next_client: #' .. idx .. ", dir=" .. direction .. ", start=" .. startidx, 1)
-        for _ = 1, #stack do
-            cyclefocus.debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
+        cyclefocus.debug('get_next_client: #' .. idx .. ", dir=" .. direction
+            .. ", start=" .. startidx .. ", consider_cur=" .. tostring(consider_cur_idx), 2)
 
-            idx = idx + direction
-            if idx < 1 then
-                idx = #stack
-            elseif idx > #stack then
-                idx = 1
+        local n = #stack
+        if consider_cur_idx then
+            local c_top = stack[idx][1]
+            if c_top ~= capi.client.focus then
+                n = n+1
+                cyclefocus.debug("Considering nextc from top of stack: " .. tostring(c_top), 2)
+            else
+                consider_cur_idx = false
             end
-            nextc = stack[idx]
+        end
+        for loop_stack_i = 1, n do
+            if not consider_cur_idx or loop_stack_i ~= 1 then
+                idx = idx + direction
+                if idx < 1 then
+                    idx = #stack
+                elseif idx > #stack then
+                    idx = 1
+                end
+            end
+            cyclefocus.debug('find loop: #' .. idx .. ", dir=" .. direction, 3)
+            nextc = stack[idx][1]
 
             if nextc then
                 -- Filtering.
                 if cycle_filters then
                     -- Get and init filter cache data structure. {{{
+                    -- TODO: move function(s) up?
                     local get_cached_filter_result = function(f, a, b)
                         local b = b or false  -- handle nil
                         if filter_result_cache[f] == nil then
@@ -369,25 +766,53 @@ cyclefocus.cycle = function(startdirection, _args)
 
     local first_run = true
     local nextc
+
+    -- Get the screen before moving the mouse.
+    local s = awful.screen.focused and awful.screen.focused() or mouse.screen
+
+    -- Move mouse pointer away to avoid sloppy focus kicking in.
+    -- TODO: go to current screen's 0/0 (not total).  Have an option/method for this!
+    local mouse_coords
+    if show_clients then
+        restore_mouse_coords = capi.mouse.coords()
+        capi.mouse.coords({ x = 0, y = 0 }, true)
+    end
+
     capi.keygrabber.run(function(mod, key, event)
+        local start_keygrabber = os.clock()
 
         -- Helper function to exit out of the keygrabber.
         -- If a client is given, it will be jumped to.
-        local exit_grabber = function (c)
+        local exit_grabber = function(c)
             cyclefocus.debug("exit_grabber: " .. get_object_name(c), 2)
-            if notifications then
-                for _, v in pairs(notifications) do
-                    naughty.destroy(v)
-                end
+            if wbox then
+                wbox.visible = false
             end
             capi.keygrabber.stop()
+
+            -- Restore.
+            if show_clients then
+                show_clients()
+            end
             if c then
+                showing_client = c
                 -- NOTE: awful.client.jumpto(c) resets mouse.
                 capi.client.focus = c
                 raise_client(c)
-                history.add(c)
+                if c ~= orig_client then
+                    history.movetotop(c)
+                end
+            end
+
+            -- Restore mouse if it has not been moved during cycling.
+            if restore_mouse_coords then
+                local coords = capi.mouse.coords()
+                if coords.x == 0 and coords.y == 0 then
+                    capi.mouse.coords(restore_mouse_coords, true)
+                end
             end
             ignore_focus_signal = false
+
             return true
         end
 
@@ -398,6 +823,15 @@ cyclefocus.cycle = function(startdirection, _args)
 
         -- Abort on Escape.
         if key == 'Escape' then
+            -- Restore previously selected tags for screen.
+            if restore_tag_selected then
+                for s = 1, capi.screen.count() do
+                    for _,t in pairs(awful.tag.gettags(s)) do
+                        t.selected = restore_tag_selected[s][t]
+                    end
+                end
+            end
+
             return exit_grabber(orig_client)
         end
 
@@ -410,6 +844,9 @@ cyclefocus.cycle = function(startdirection, _args)
             -- we need to fetch the next client while exiting.
             if first_run then
                 nextc, idx = get_next_client(direction, idx)
+            end
+            if show_clients then
+                show_clients(nextc)
             end
             return exit_grabber(nextc)
         end
@@ -431,28 +868,68 @@ cyclefocus.cycle = function(startdirection, _args)
             return exit_grabber()
         end
 
+        -- Show the client, which triggers setup of restore_callback_show_client etc.
+        if show_clients then
+            show_clients(nextc)
+        end
         -- Focus client.
         if args.focus_clients then
             capi.client.focus = nextc
-        end
-
-        -- Raise client.
-        if args.raise_clients then
-            raise_client(nextc)
         end
 
         if not args.display_notifications then
             return true
         end
 
-        -- Create notification with index, name and screen.
+        local container_margin_top_bottom = dpi(5)
+        local container_margin_left_right = dpi(5)
+        local icon_margin = 5
+        if not wbox then
+            wbox = wibox({ontop = true })
+            wbox._for_screen = mouse.screen
+            wbox:set_fg(beautiful.fg_normal)
+            wbox:set_bg("#ffffff00")
+
+            local container_inner = wibox.layout.align.vertical()
+            container_layout = wibox.layout.margin(
+                container_inner,
+                container_margin_left_right, container_margin_left_right,
+                container_margin_top_bottom, container_margin_top_bottom)
+            container_layout = wibox.widget.background(container_layout)
+            container_layout:set_bg(beautiful.bg_normal..'cc')
+
+            -- constraint:set_widget(layout)
+            -- constraint = wibox.layout.constraint(layout, "max", w, h/2)
+            -- wbox:set_widget(constraint)
+            wbox:set_widget(container_layout)
+            layout = wibox.layout.flex.vertical()
+            container_inner:set_middle(layout)
+        else
+            layout:reset()
+        end
+
+        -- Set geometry always, the screen might have changed.
+        if not wbox_screen or wbox_screen ~= s then
+            wbox_screen = s
+            local wa = screen[wbox_screen].workarea
+            local w = math.ceil(wa.width * 0.618)
+            wbox:geometry({
+                -- right-align.
+                x = math.ceil(wa.x + wa.width - w),
+                width = w,
+            })
+        end
+        local wbox_height = 0
+        local max_icon_size = 48
+
+        -- Create entry with index, name and screen.
         local do_notification_for_idx_offset = function(offset, c, idx, displayed_list)  -- {{{
             -- TODO: make this configurable using placeholders.
             local naughty_args = {}
             -- .. ", [tags " .. table.concat(tags, ", ") .. "]"
 
             -- Get naughty preset from naughty_preset, and callbacks.
-            naughty_args.preset = awful.util.table.clone(args.naughty_preset)
+            local preset = awful.util.table.clone(args.naughty_preset)
 
             -- Callback.
             local args_for_cb = {
@@ -460,23 +937,82 @@ cyclefocus.cycle = function(startdirection, _args)
                 offset=offset,
                 idx=idx,
                 displayed_list=displayed_list }
-            local preset_for_offset = args.naughty_preset_for_offset
+            local preset_for_offset = args.preset_for_offset
             local preset_cb = preset_for_offset[tostring(offset)]
             -- Callback for all.
             if preset_for_offset.default then
-                preset_for_offset.default(naughty_args.preset, args_for_cb)
+                preset_for_offset.default(preset, args_for_cb)
             end
             -- Callback for offset.
             if preset_cb then
-                preset_cb(naughty_args.preset, args_for_cb)
+                preset_cb(preset, args_for_cb)
             end
 
-            -- Replace previous notification, if any.
-            if notifications[tostring(offset)] then
-                naughty_args.replaces_id = notifications[tostring(offset)].id
+            local entrybox = wibox({})
+            -- local entry_layout = wibox.layout.flex.horizontal()
+            local entry_layout = wibox.layout.fixed.horizontal()
+
+            -- From naughty.
+            local icon = preset.icon
+            local icon_margin = icon_margin
+            local iconmarginbox
+            if icon then
+                -- surface.load_uncached(icon)
+                local surface = require("gears.surface")
+                local cairo = require("lgi").cairo
+                iconbox = wibox.widget.imagebox()
+                local icon_size = preset.icon_size
+                if icon_size then
+                    local scaled = cairo.ImageSurface(cairo.Format.ARGB32, icon_size, icon_size)
+                    local cr = cairo.Context(scaled)
+                    cr:scale(icon_size / icon:get_height(), icon_size / icon:get_width())
+                    cr:set_source_surface(icon, 0, 0)
+                    cr:paint()
+                    icon = scaled
+                    icon_margin = icon_margin + math.max(0, (max_icon_size - icon_size)/2)
+                end
+
+                -- Margin.
+                iconmarginbox = wibox.layout.margin(iconbox)
+                iconmarginbox:set_margins(icon_margin)
+
+                iconbox:set_resize(false)
+                iconbox:set_image(icon)
+                icon_h = icon:get_height()
+
+                entry_layout:add(iconmarginbox)
             end
 
-            notifications[tostring(offset)] = naughty.notify(naughty_args)
+            local textbox = wibox.widget.textbox()
+            textbox:set_markup(preset.text)
+            textbox:set_font(preset.font)
+            textbox:set_wrap("word_char")
+            textbox:set_ellipsize("middle")
+            textbox_margin = wibox.layout.margin(textbox)
+            textbox_margin:set_margins(dpi(5))
+
+            entry_layout:add(textbox_margin)
+            entry_layout = wibox.layout.margin(entry_layout, dpi(5), dpi(5),
+                                               dpi(2), dpi(2))
+            local entry_with_bg = wibox.widget.background(entry_layout)
+            if offset == 0 then
+                entry_with_bg:set_fg(beautiful.fg_focus)
+                entry_with_bg:set_bg(beautiful.bg_focus)
+            else
+                entry_with_bg:set_fg(beautiful.fg_normal)
+                -- entry_with_bg:set_bg(beautiful.bg_normal.."dd")
+            end
+            layout:add(entry_with_bg)
+
+            -- TODO: get context automatically?!
+            -- local context = wbox:get_widget_context()
+            -- local context = {dpi=176}
+            local context = {}
+
+            -- Add height to outer wibox.
+            -- Hack for newer API (https://github.com/awesomeWM/awesome/pull/398#issuecomment-134955805).
+            local _, entry_height = entry_with_bg:fit(context, wbox.width, 2^20)
+            wbox_height = wbox_height + entry_height
         end  -- }}}
 
         -- Get clients before and after currently selected one.
@@ -486,7 +1022,7 @@ cyclefocus.cycle = function(startdirection, _args)
         local dlist = {}  -- A table with offset => stack index.
 
         dlist[0] = _idx
-        prevnextlist[_idx] = false
+        prevnextlist[_idx][1] = false
 
         -- Build dlist for both directions, depending on how many entries should get displayed.
         for _,dir in ipairs({1, -1}) do
@@ -494,11 +1030,11 @@ cyclefocus.cycle = function(startdirection, _args)
             local n = dir == 1 and args.display_next_count or args.display_prev_count
             for i = 1, n do
                 local _i = i * dir
-                _, _idx = get_next_client(dir, _idx, prevnextlist)
+                _, _idx = get_next_client(dir, _idx, prevnextlist, false)
                 if _ then
                     dlist[_i] = _idx
                 end
-                prevnextlist[_idx] = false
+                prevnextlist[_idx][1] = false
             end
         end
 
@@ -508,9 +1044,10 @@ cyclefocus.cycle = function(startdirection, _args)
         table.sort(offsets)
 
         -- Issue the notifications.
+        local start = os.clock()
         for _,i in ipairs(offsets) do
             _idx = dlist[i]
-            do_notification_for_idx_offset(i, history.stack[_idx], _idx, dlist)
+            do_notification_for_idx_offset(i, history.stack[_idx][1], _idx, dlist)
             -- Unset client from prevnext list.
             local k = awful.util.table.hasitem(prevnextlist, _c)
             if k then
@@ -518,7 +1055,13 @@ cyclefocus.cycle = function(startdirection, _args)
                 prevnextlist[k] = false
             end
         end
-
+        local wa = screen[s].workarea
+        local h = wbox_height + container_margin_top_bottom*2
+        wbox:geometry({
+            height = h,
+            y = wa.y + floor(wa.height/2 - h/2),
+        })
+        wbox.visible = true
         return true
     end)
 end
