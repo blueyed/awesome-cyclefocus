@@ -993,15 +993,10 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             end
             layout:add(entry_with_bg)
 
-            -- TODO: get context automatically?!
-            -- local context = wbox:get_widget_context()
-            -- local context = {dpi=176}
-            local context = {}
-
             -- Add height to outer wibox.
-            -- Hack for newer API (https://github.com/awesomeWM/awesome/pull/398#issuecomment-134955805).
-            local _, entry_height = entry_with_bg:fit(context, wbox.width, 2^20)
-            wbox_height = wbox_height + entry_height
+            local context = {dpi=beautiful.xresources.get_dpi(initial_screen)}
+            local _, h = entry_with_bg:fit(context, wbox.width, 2^20)
+            wbox_height = wbox_height + h
         end  -- }}}
 
         -- Get clients before and after currently selected one.
