@@ -410,7 +410,7 @@ local raise_client = function(c)
     if t then
         t:view_only()
     end
-    c:raise()
+    c:jump_to()
 end
 
 
@@ -771,11 +771,15 @@ cyclefocus.cycle = function(startdirection_or_args, args)
     local initial_screen = awful.screen.focused and awful.screen.focused() or mouse.screen
 
     -- Move mouse pointer away to avoid sloppy focus kicking in.
-    -- TODO: go to current screen's 0/0 (not total).  Have an option/method for this!
     local restore_mouse_coords
     if show_clients then
-        restore_mouse_coords = capi.mouse.coords()
-        capi.mouse.coords({ x = 0, y = 0 }, true)
+        local s = capi.screen[capi.mouse.screen]
+        local coords = capi.mouse.coords()
+        restore_mouse_coords = {s = s, x = coords.x, y = coords.y}
+        local pos = {x = s.geometry.x, y = s.geometry.y}
+        -- move cursor without triggering signals mouse::enter and mouse::leave
+        capi.mouse.coords(pos, true)
+        restore_mouse_coords.moved = pos
     end
 
     capi.keygrabber.run(function(mod, key, event)
@@ -792,21 +796,23 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             if show_clients then
                 show_clients()
             end
-            if c then
-                showing_client = c
-                -- NOTE: awful.client.jumpto(c) resets mouse.
-                capi.client.focus = c
-                raise_client(c)
-                if c ~= orig_client then
-                    history.movetotop(c)
-                end
-            end
 
             -- Restore mouse if it has not been moved during cycling.
             if restore_mouse_coords then
-                local coords = capi.mouse.coords()
-                if coords.x == 0 and coords.y == 0 then
-                    capi.mouse.coords(restore_mouse_coords, true)
+                if restore_mouse_coords.s == capi.screen[capi.mouse.screen] then
+                  local coords = capi.mouse.coords()
+                  local moved_coords = restore_mouse_coords.moved
+                  if moved_coords.x == coords.x and moved_coords.y == coords.y then
+                      capi.mouse.coords({x = restore_mouse_coords.x, y = restore_mouse_coords.y}, true)
+                  end
+                end
+            end
+
+            if c then
+                showing_client = c
+                raise_client(c)
+                if c ~= orig_client then
+                    history.movetotop(c)
                 end
             end
             ignore_focus_signal = false
