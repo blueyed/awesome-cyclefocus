@@ -136,9 +136,9 @@ For the source client to be available, it needs to be an entry in the
 
 You can pass functions here, or use one of the predefined filters:
 
-#### Prefefined filters
+#### Predefined filters
 
-The following filters are predefined, and can be used (as with the example above):
+The following filters are available by default:
 
 ```lua
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
