@@ -337,6 +337,8 @@ You can report bugs and wishes at the [Github issue tracker][].
 
 Pull requests would be awesome! :)
 
+## Donate
+
 [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=blueyed&url=https://github.com/blueyed/awesome-cyclefocus&title=awesome-cyclefocus&language=en&tags=github&category=software)
 
 Bitcoin: 16EVhEpXxfNiT93qT2uxo4DsZSHzNdysSp
