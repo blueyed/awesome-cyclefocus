@@ -34,32 +34,30 @@ end
 -- Configuration. This can be overridden: global or via args to cyclefocus.cycle.
 local cyclefocus
 cyclefocus = {
-    -- Should clients be shown during cycling?  This should be a function,
-    -- which receives a client object, and can make use of
-    -- cyclefocus.show_client (the default implementation).
-    -- Use false to disable showing clients.
+    -- Should clients get shown during cycling?
+    -- This should be a function (or `false` to disable showing clients), which
+    -- receives a client object, and can make use of cyclefocus.show_client
+    -- (the default implementation).
     show_clients = true,
-    -- Should clients be focused during cycling?
+    -- Should clients get focused during cycling?
     -- This is required for the tasklist to highlight the selected entry.
     focus_clients = true,
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 3,
-    display_prev_count = 3,  -- only 0 for prev, works better with naughty notifications.
+    display_prev_count = 3,
 
-    -- Preset to be used for the notification.
-    naughty_preset = {
-        position = 'top_left',
-        timeout = 0,
-    },
+    -- Default preset to for entries.
+    -- `preset_for_offset` (below) gets added to it.
+    default_preset = {},
 
-    --- Templates for naughty notifications.
-    -- The following arguments are passed to a callback:
+    --- Templates for entries in the list.
+    -- The following arguments get passed to a callback:
     --  - client: the current client object.
     --  - idx: index number of current entry in clients list.
-    --  - displayed_list: the list of entries in the list, might be filtered.
+    --  - displayed_list: the list of entries in the list, possibly filtered.
     preset_for_offset = {
-        -- Default callback, which will be applied for all offsets (first).
+        -- Default callback, which will gets applied for all offsets (first).
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
@@ -74,7 +72,7 @@ cyclefocus = {
             preset.font = 'sans 12'
             preset.icon_size = 48
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
-            -- Add screen number if there are multiple.
+            -- Add screen number if there is more than one.
             if screen.count() > 1 then
                 preset.text = preset.text .. " [screen " .. tostring(args.client.screen.index) .. "]"
             end
@@ -90,15 +88,14 @@ cyclefocus = {
         --     -- preset.icon_size = 32
         -- end
     },
-    -- naughty_preset_for_offset = cyclefocus.preset,  -- DEPRECATED
 
     -- Default builtin filters.
-    -- These are meant to get applied always, but you could override them.
+    -- (meant to get applied always, but you could override them)
     cycle_filters = {
         function(c, source_c) return not c.minimized end,  --luacheck: no unused args
     },
 
-    -- EXPERIMENTAL: Only add clients to the history that have been focused by
+    -- EXPERIMENTAL: only add clients to the history that have been focused by
     -- cyclefocus.
     -- This allows to switch clients using other methods, but those are then
     -- not added to cyclefocus' internal history.
@@ -931,7 +928,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
         -- Create entry with index, name and screen.
         local display_entry_for_idx_offset = function(offset, c, _idx, displayed_list)  -- {{{
-            local preset = awful.util.table.clone(args.naughty_preset)
+            local preset = awful.util.table.clone(args.default_preset)
 
             -- Callback.
             local args_for_cb = {
