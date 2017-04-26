@@ -797,6 +797,19 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                 show_clients()
             end
 
+            -- Restore previously selected tags for screen(s).
+            -- With a given client, handle other screens first, otherwise
+            -- the focus might be on the wrong screen.
+            if restore_tag_selected then
+                for s in capi.screen do
+                    if not c or s ~= c.screen then
+                        for _,t in pairs(s.tags) do
+                            t.selected = restore_tag_selected[s][t]
+                        end
+                    end
+                end
+            end
+
             -- Restore mouse if it has not been moved during cycling.
             if restore_mouse_coords then
                 if restore_mouse_coords.s == capi.screen[capi.mouse.screen] then
@@ -827,15 +840,6 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
         -- Abort on Escape.
         if key == 'Escape' then
-            -- Restore previously selected tags for screen.
-            if restore_tag_selected then
-                for s in capi.screen do
-                    for _,t in pairs(s.tags) do
-                        t.selected = restore_tag_selected[s][t]
-                    end
-                end
-            end
-
             return exit_grabber(orig_client)
         end
 
