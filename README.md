@@ -3,20 +3,20 @@
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
 - [awesome-cyclefocus](#awesome-cyclefocus)
-	- [Screenshot](#screenshot)
-	- [Installation](#installation)
-	- [Keybindings](#keybindings)
-		- [Example 1: cycle through all windows](#example-1-cycle-through-all-windows)
-		- [Example 2: cycle through windows on the same screen and tag](#example-2-cycle-through-windows-on-the-same-screen-and-tag)
-			- [`cycle_filters`](#cycle_filters)
-			- [Prefefined filters](#prefefined-filters)
-		- [Example 3: cycle through clients with the same class](#example-3-cycle-through-clients-with-the-same-class)
-	- [Reference](#reference)
-		- [Configuration](#configuration)
-			- [<a name="settings"></a>Settings](#<a-name=settings><a>settings)
-	- [Status](#status)
-		- [Notifications](#notifications)
+  - [Screenshot](#screenshot)
+  - [Installation](#installation)
+  - [Keybindings](#keybindings)
+    - [Example 1: cycle through all windows](#example-1-cycle-through-all-windows)
+    - [Example 2: cycle through windows on the same screen and tag](#example-2-cycle-through-windows-on-the-same-screen-and-tag)
+      - [`cycle_filters`](#cycle_filters)
+      - [Predefined filters](#predefined-filters)
+    - [Example 3: cycle through clients with the same class](#example-3-cycle-through-clients-with-the-same-class)
+  - [Reference](#reference)
+    - [Configuration](#configuration)
+      - [<a name="settings"></a>Settings](#a-namesettingsasettings)
+  - [Status](#status)
 - [Bugs, Feedback and Support](#bugs-feedback-and-support)
+  - [Donate](#donate)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -334,12 +334,6 @@ Internals, default settings and behavior might still change.
 I came up with this while dipping my toes in the waters of awesome. If you have
 problems, please enable `cyclefocus.debug_level` (goes up to 3) and report your
 findings on the [Github issue tracker][].
-
-### Notifications
-
-The notifications while cycling are displayed using `naughty.notify`.
-This needs to be replaced and/or improved upon.
-The text to be displayed should be made customizable also.
 
 # Bugs, Feedback and Support
 
