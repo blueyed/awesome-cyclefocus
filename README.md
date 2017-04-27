@@ -56,8 +56,8 @@ local cyclefocus = require('cyclefocus')
 
 Then you can define the keybindings.
 
-While you can use it with the `globalkeys`, the `clientkeys` table is required for any
-bindings which use `cycle_filters`.
+While you can use it with the `globalkeys` configuation, you should use
+the `clientkeys` table for any bindings which use `cycle_filters`.
 
 The default for `modkey+Tab` in awesome (3.5.2) is:
 ```lua
@@ -69,25 +69,23 @@ awful.key({ modkey,           }, "Tab",
         end
     end),
 ```
-You should disable it (e.g. by commenting it), and put your method below (or in the same block).
-(However, this would be in the `globalkeys` block, which is only useful for the mapping to cycle
-through all windows.)
+You should disable it (e.g. by commenting it out), and add your method below.
 
 Here are three methods to setup the key mappings:
 
 ### Example 1: cycle through all windows
 
-Setup `modkey+Tab` to cycle through all windows (assuming modkey is
+Setup `modkey+Tab` to cycle through all windows (assuming `modkey` is
 `Mod4`/`Super_L`, which is the default):
 
 ```lua
 -- modkey+Tab: cycle through all clients.
 awful.key({ modkey }, "Tab", function(c)
-        cyclefocus.cycle({modifier="Super_L"})
+    cyclefocus.cycle({modifier="Super_L"})
 end),
 -- modkey+Shift+Tab: backwards
 awful.key({ modkey, "Shift" }, "Tab", function(c)
-        cyclefocus.cycle({modifier="Super_L"})
+    cyclefocus.cycle({modifier="Super_L"})
 end),
 ```
 
@@ -97,13 +95,12 @@ Internally the direction gets set according to if the `Shift` modifier key
 is present, so that the second definition is only necessary to trigger it in
 the opposite direction from the beginning.
 
-See the `init.lua` file for a full reference, or refer to the [settings section
-below](#settings).
+See the `init.lua` file (or the [settings section below](#settings)) for a full
+reference.
 
 ### Example 2: cycle through windows on the same screen and tag
 
-There is a helper function `cyclefocus.key`, which can be used instead of
-`awful.key` (it is a wrapper):
+You can use `cyclefocus.key` (a wrapper around `awful.key`) like this:
 
 ```lua
 -- Alt-Tab: cycle through clients on the same screen.
@@ -123,6 +120,8 @@ and the key. Then the table with optional arguments to `cyclefocus.cycle()`
 follows.
 (here the `modifier` argument is not required, because it gets used from
 the first argument).
+
+NOTE: this needs to go into `clientkeys`.
 
 #### `cycle_filters`
 
@@ -168,9 +167,6 @@ cyclefocus.filters = {
 }
 ```
 
-NOTE: this list is likely to change in the beginning. Please consider
-submitting any custom filters you come up with to the [Github issue tracker][].
-
 ### Example 3: cycle through clients with the same class
 
 The following will cycle through windows, which share the same window class
@@ -193,11 +189,12 @@ below Escape, above Tab and next to the first digit (1).
 It should be the same shortcut, as what Ubuntu's Unity uses to cycle through
 the windows of a single application.
 
-NOTE: You need to pass the keys this refers to via the `keys` argument. This is
-required for the keygrabber to only consider those.
+NOTE: You need to pass the keys this refers to via the `keys` argument, so that
+the keygrabber considers those only.
 In the example above, `^` and `°` refers to the key on the German keyboard
 layout (un-shifted and shifted, i.e. with Shift pressed and released).
 
+NOTE: this needs to go into `clientkeys`.
 
 ## Reference
 
@@ -206,7 +203,6 @@ layout (un-shifted and shifted, i.e. with Shift pressed and released).
 awesome-cyclefocus can be configured by passing optional arguments to the
 `cyclefocus.cycle` or `cyclefocus.key` functions, or by setting defaults, after
 loading `cyclefocus`:
-
 
 #### <a name="settings"></a>Settings
 
@@ -328,7 +324,7 @@ cyclefocus.key({ modkey, "Shift", }, "Tab", 1, {
 
 ## Status
 
-This is to be considered stable: It works for well for me and others.
+Stable: it works well for me and others.
 Internals, default settings and behavior might still change.
 
 I came up with this while dipping my toes in the waters of awesome. If you have
