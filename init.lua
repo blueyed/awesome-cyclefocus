@@ -655,7 +655,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
     ignore_focus_signal = true
 
     -- Internal state.
-    local orig_client = capi.client.focus  -- Will be jumped to via Escape (abort).
+    local initiating_client = args.initiating_client or capi.client.focus  -- Will be jumped to via Escape (abort).
 
     -- Save list of selected tags for all screens.
     local restore_tag_selected = {}
@@ -733,15 +733,15 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                     local filter_result
                     for _k, filter in pairs(cycle_filters) do
                         cyclefocus.debug("Checking filter ".._k.."/"..#cycle_filters..": "..tostring(filter), 4)
-                        filter_result = get_cached_filter_result(filter, nextc, args.initiating_client)
+                        filter_result = get_cached_filter_result(filter, nextc, initiating_client)
                         if filter_result ~= nil then
                             if not filter_result then
                                 nextc = false
                                 break
                             end
                         else
-                            filter_result = filter(nextc, args.initiating_client)
-                            set_cached_filter_result(filter, nextc, args.initiating_client, filter_result)
+                            filter_result = filter(nextc, initiating_client)
+                            set_cached_filter_result(filter, nextc, initiating_client, filter_result)
                             if not filter_result then
                                 cyclefocus.debug("Filtering/skipping client: " .. get_object_name(nextc), 3)
                                 nextc = false
@@ -821,7 +821,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             if c then
                 showing_client = c
                 raise_client(c)
-                if c ~= orig_client then
+                if c ~= initiating_client then
                     history.movetotop(c)
                 end
             end
@@ -837,7 +837,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
         -- Abort on Escape.
         if key == 'Escape' then
-            return exit_grabber(orig_client)
+            return exit_grabber(initiating_client)
         end
 
         -- Direction (forward/backward) is determined by status of shift.
