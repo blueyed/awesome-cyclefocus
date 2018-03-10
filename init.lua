@@ -1040,9 +1040,11 @@ cyclefocus.cycle = function(startdirection_or_args, args)
         end
         local wa = screen[initial_screen].workarea
         local h = wbox_height + container_margin_top_bottom*2
+        local w = wbox.width + container_margin_top_bottom*2
         wbox:geometry({
             height = h,
             y = wa.y + floor(wa.height/2 - h/2),
+            x = wa.x + floor(wa.width/2 - w/2)
         })
         wbox.visible = true
         return true
