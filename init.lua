@@ -186,6 +186,10 @@ cyclefocus.filters = {
 local ignore_focus_signal = false  -- Flag to ignore the focus signal internally.
 local showing_client
 
+-- This can be used in signal handlers to e.g. skip changing border_width.
+cyclefocus.get_shown_client = function()
+    return showing_client
+end
 
 -- Debug function. Set focusstyle.debug to activate it. {{{
 cyclefocus.debug = function(msg, level)
