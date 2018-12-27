@@ -36,12 +36,17 @@ local cyclefocus
 cyclefocus = {
     -- Should clients get shown during cycling?
     -- This should be a function (or `false` to disable showing clients), which
-    -- receives a client object, and can make use of cyclefocus.show_client
+    -- receives a client object, and can make use of `cyclefocus.show_client`
     -- (the default implementation).
     show_clients = true,
     -- Should clients get focused during cycling?
     -- This is required for the tasklist to highlight the selected entry.
     focus_clients = true,
+    -- Should the selected client get raised?
+    -- This calls `cyclefocus.raise_client_without_focus` by default, which you
+    -- can use when overriding this with a function (that gets the client as
+    -- argument).
+    raise_client = true,
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 3,
@@ -396,12 +401,13 @@ end)
 -- }}}
 
 -- Raise a client (does not include focusing).
+-- Default implementation for raise_client option.
 -- NOTE: awful.client.jumpto also focuses the screen / resets the mouse.
 -- See https://github.com/blueyed/awesome-cyclefocus/issues/6
 -- Based on awful.client.jumpto, without the code for mouse.
 -- Calls tag:viewonly always to update the tag history, also when
 -- the client is visible.
-local raise_client = function(c)
+cyclefocus.raise_client_without_focus = function(c)
     -- Try to make client visible, this also covers e.g. sticky
     local t = c:tags()[1]
     if t then
@@ -645,6 +651,11 @@ cyclefocus.cycle = function(startdirection_or_args, args)
         show_clients = cyclefocus.show_client
     end
 
+    local raise_client_fn = args.raise_client
+    if raise_client_fn and type(raise_client_fn) ~= 'function' then
+        raise_client_fn = cyclefocus.raise_client_without_focus
+    end
+
     -- Support single filter.
     if args.cycle_filter then
         cycle_filters = awful.util.table.clone(cycle_filters)
@@ -820,7 +831,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
             if c then
                 showing_client = c
-                raise_client(c)
+                raise_client_fn(c)
                 if c ~= initiating_client then
                     history.movetotop(c)
                 end

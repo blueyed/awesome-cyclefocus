@@ -212,12 +212,17 @@ The default settings are:
 cyclefocus = {
     -- Should clients get shown during cycling?
     -- This should be a function (or `false` to disable showing clients), which
-    -- receives a client object, and can make use of cyclefocus.show_client
+    -- receives a client object, and can make use of `cyclefocus.show_client`
     -- (the default implementation).
     show_clients = true,
     -- Should clients get focused during cycling?
     -- This is required for the tasklist to highlight the selected entry.
     focus_clients = true,
+    -- Should the selected client get raised?
+    -- This calls `cyclefocus.raise_client_without_focus` by default, which you
+    -- can use when overriding this with a function (that gets the client as
+    -- argument).
+    raise_client = true,
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 3,
