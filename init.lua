@@ -1120,7 +1120,7 @@ function cyclefocus.key(mods, key, startdirection_or_args, args)
         end
     end
     args.keys = args.keys or {key}
-    args.modifier = args.modifier or mods[0]
+    args.modifier = args.modifier or mods[1]
 
     return awful.key(mods, key, function(c)
         args.initiating_client = c  -- only for clientkeys, might be nil!
