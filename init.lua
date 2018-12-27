@@ -66,14 +66,14 @@ cyclefocus = {
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
-            preset.icon_size = 36
+            preset.icon_size = dpi(24)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, false))
         end,
 
         -- Preset for current entry.
         ["0"] = function (preset, args)
-            preset.font = 'sans 12'
-            preset.icon_size = 72
+            preset.font = 'sans 14'
+            preset.icon_size = dpi(36)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there is more than one.
             if screen.count() > 1 then
@@ -101,7 +101,7 @@ cyclefocus = {
     -- Experimental: Width of icon column ("max_icon_size", used for margin).
     -- This could be "margin" etc instead, but currently only the width for the
     -- current entry is known.
-    icon_col_width = 72,
+    icon_col_width = dpi(36),
 
     -- EXPERIMENTAL: only add clients to the history that have been focused by
     -- cyclefocus.
