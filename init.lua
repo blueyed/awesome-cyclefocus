@@ -968,7 +968,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             -- constraint = wibox.layout.constraint(layout, "max", w, h/2)
             -- wbox:set_widget(constraint)
             wbox:set_widget(container_layout)
-            layout = wibox.layout.flex.vertical()
+            layout = wibox.layout.fixed.vertical()
             container_inner:set_middle(layout)
         else
             layout:reset()
