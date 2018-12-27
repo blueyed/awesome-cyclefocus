@@ -583,38 +583,37 @@ cyclefocus.show_client = function (c)
         -- Handle setting ontop for the current client.
         -- This involves managing other properties, since setting "ontop"
         -- resets "fullscreen", "below", and "above".
-        if c.ontop then
-            -- All good, the client will be visible.
-        elseif c.fullscreen then
-            -- Keep fullscreen clients as is.
-            -- This requires to temporarily unset ontop for others.
-            -- NOTE: the client might not be visible with other ontop clients
-            --       after selecting it.  This could be handled by setting
-            --       ontop in the end (unsetting its fullscreen then though).
-            local ontop_restore_clients = {}
-            for _,_c in pairs(awful.client.visible(client.screen)) do
-                if _c.ontop then
-                    table.insert(ontop_restore_clients, _c)
-                    _c.ontop = false
-                end
-            end
-            if #ontop_restore_clients then
-                function restore_ontop_c()
-                    for _,_c in pairs(ontop_restore_clients) do
-                        _c.ontop = true
+        if not c.ontop then
+            if c.fullscreen then
+                -- Keep fullscreen clients as is.
+                -- This requires to temporarily unset ontop for others.
+                -- NOTE: the client might not be visible with other ontop clients
+                --       after selecting it.  This could be handled by setting
+                --       ontop in the end (unsetting its fullscreen then though).
+                local ontop_restore_clients = {}
+                for _,_c in pairs(awful.client.visible(client.screen)) do
+                    if _c.ontop then
+                        table.insert(ontop_restore_clients, _c)
+                        _c.ontop = false
                     end
                 end
+                if #ontop_restore_clients then
+                    function restore_ontop_c()
+                        for _,_c in pairs(ontop_restore_clients) do
+                            _c.ontop = true
+                        end
+                    end
+                end
+            else
+                local ontop_orig_props = {c.ontop, c.below, c.above, c.fullscreen}
+                function restore_ontop_c()
+                    c.ontop = ontop_orig_props[1]
+                    c.below = ontop_orig_props[2]
+                    c.above = ontop_orig_props[3]
+                    c.fullscreen = ontop_orig_props[4]
+                end
+                c.ontop = true
             end
-        else
-            local ontop_orig_props = {c.ontop, c.below, c.above, c.fullscreen}
-            function restore_ontop_c()
-                bnote("restore 1")
-                c.ontop = ontop_orig_props[1]
-                c.below = ontop_orig_props[2]
-                c.above = ontop_orig_props[3]
-                c.fullscreen = ontop_orig_props[4]
-            end
-            c.ontop = true
         end
 
         -- Make the clients tag visible, if it currently is not.
