@@ -638,6 +638,14 @@ cyclefocus.cycle = function(startdirection_or_args, args)
     local cycle_filters = awful.util.table.join(args.cycle_filters or {},
         cyclefocus.cycle_filters)
 
+    -- Use "Escape" as exit_key if not used as key.
+    local exit_key = args.exit_key
+    if exit_key == nil then
+        if not awful.util.table.hasitem(keys, 'Escape') then
+            exit_key = 'Escape'
+        end
+    end
+
     local filter_result_cache = {}     -- Holds cached filter results.
 
     local show_clients = args.show_clients
@@ -835,8 +843,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             .. ", event: " .. tostring(event)
             .. ", modifier_key: " .. tostring(modifier), 3)
 
-        -- Abort on Escape.
-        if key == 'Escape' then
+        if exit_key and key == exit_key then
             return exit_grabber(initiating_client)
         end
 
