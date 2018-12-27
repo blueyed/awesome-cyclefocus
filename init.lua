@@ -411,16 +411,9 @@ local raise_client = function(c)
 end
 
 
--- Keep track of the client where "ontop" needs to be restored, and forget
--- about it in "unmanage", to avoid an "invalid object" error.
--- Ref: https://github.com/awesomeWM/awesome/issues/110
-local restore_ontop_c
 local restore_callback_show_client
 local show_client_restore_client_props = {}
 client.connect_signal("unmanage", function (c)
-    if restore_ontop_c and c == restore_ontop_c[1] then
-        restore_ontop_c = nil
-    end
     if c == restore_callback_show_client then
         restore_callback_show_client = nil
     end
@@ -566,6 +559,12 @@ cyclefocus.callback_show_client = function (c, restore)
     callback_show_client_lock = false
 end
 
+-- Handle temporarily setting "ontop" for shown clients.
+-- This is a function that keeps track and handles the related "below",
+-- "above", and "fullscreen" properties.
+-- Ref: https://github.com/awesomeWM/awesome/issues/667
+local restore_ontop_c
+
 -- Helper function to restore state of the temporarily selected client.
 cyclefocus.show_client = function (c)
     showing_client = c
@@ -576,12 +575,47 @@ cyclefocus.show_client = function (c)
         end
         restore_callback_show_client = c
 
-        -- (Re)store ontop property.
+        -- Restore ontop (and related) properties.
         if restore_ontop_c then
-            restore_ontop_c[1].ontop = restore_ontop_c[2]
+            restore_ontop_c()
+            restore_ontop_c = nil
         end
-        restore_ontop_c = {c, c.ontop}
-        c.ontop = true
+        -- Handle setting ontop for the current client.
+        -- This involves managing other properties, since setting "ontop"
+        -- resets "fullscreen", "below", and "above".
+        if c.ontop then
+            -- All good, the client will be visible.
+        elseif c.fullscreen then
+            -- Keep fullscreen clients as is.
+            -- This requires to temporarily unset ontop for others.
+            -- NOTE: the client might not be visible with other ontop clients
+            --       after selecting it.  This could be handled by setting
+            --       ontop in the end (unsetting its fullscreen then though).
+            local ontop_restore_clients = {}
+            for _,_c in pairs(awful.client.visible(client.screen)) do
+                if _c.ontop then
+                    table.insert(ontop_restore_clients, _c)
+                    _c.ontop = false
+                end
+            end
+            if #ontop_restore_clients then
+                function restore_ontop_c()
+                    for _,_c in pairs(ontop_restore_clients) do
+                        _c.ontop = true
+                    end
+                end
+            end
+        else
+            local ontop_orig_props = {c.ontop, c.below, c.above, c.fullscreen}
+            function restore_ontop_c()
+                bnote("restore 1")
+                c.ontop = ontop_orig_props[1]
+                c.below = ontop_orig_props[2]
+                c.above = ontop_orig_props[3]
+                c.fullscreen = ontop_orig_props[4]
+            end
+            c.ontop = true
+        end
 
         -- Make the clients tag visible, if it currently is not.
         local sel_tags = c.screen.selected_tags
@@ -610,7 +644,8 @@ cyclefocus.show_client = function (c)
 
     else  -- No client provided, restore only.
         if restore_ontop_c then
-            restore_ontop_c[1].ontop = restore_ontop_c[2]
+            restore_ontop_c()
+            restore_ontop_c = nil
         end
         cyclefocus.callback_show_client(restore_callback_show_client, true)
         showing_client = nil
