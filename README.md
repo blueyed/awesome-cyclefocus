@@ -56,7 +56,7 @@ local cyclefocus = require('cyclefocus')
 
 Then you can define the keybindings.
 
-While you can use it with the `globalkeys` configuation, you should use
+While you can use it with the `globalkeys` configuration, you should use
 the `clientkeys` table for any bindings which use `cycle_filters`.
 
 The default for `modkey+Tab` in awesome (3.5.2) is:
