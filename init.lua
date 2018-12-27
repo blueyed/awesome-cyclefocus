@@ -936,6 +936,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                 if c ~= initiating_client then
                     history.movetotop(c)
                 end
+                showing_client = nil
             end
             ignore_focus_signal = false
 
