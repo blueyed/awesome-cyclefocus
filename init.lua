@@ -52,7 +52,7 @@ cyclefocus = {
     display_next_count = 3,
     display_prev_count = 3,
 
-    -- Default preset to for entries.
+    -- Default preset to use for entries.
     -- `preset_for_offset` (below) gets added to it.
     default_preset = {},
 
@@ -66,16 +66,14 @@ cyclefocus = {
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
-            preset.icon_size = 36
+            preset.icon_size = dpi(24)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, false))
-
-            preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
 
         -- Preset for current entry.
         ["0"] = function (preset, args)
-            preset.font = 'sans 12'
-            preset.icon_size = 48
+            preset.font = 'sans 14'
+            preset.icon_size = dpi(36)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there is more than one.
             if screen.count() > 1 then
@@ -99,6 +97,11 @@ cyclefocus = {
     cycle_filters = {
         function(c, source_c) return not c.minimized end,  --luacheck: no unused args
     },
+
+    -- Experimental: Width of icon column ("max_icon_size", used for margin).
+    -- This could be "margin" etc instead, but currently only the width for the
+    -- current entry is known.
+    icon_col_width = dpi(36),
 
     -- EXPERIMENTAL: only add clients to the history that have been focused by
     -- cyclefocus.
@@ -128,15 +131,61 @@ cyclefocus = {
     -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
     debug_level = 0,
     -- Use naughty notifications for debugging (additional to printing)?
-    debug_use_naughty_notify = 1,
+    debug_use_naughty_notify = false,
 }
 
-local has_gears, gears = pcall(require, 'gears')
-if has_gears then
-    -- Use gears to prevent memory leaking.
-    cyclefocus.icon_loader = gears.surface.load
+
+-- Wrap icon widget with margin.
+local get_icon_wrapper_widget = function(w, preset)
+    local icon_margin = preset.icon_margin or dpi(5)
+    local icon_center_margin = icon_margin + math.max(0, (cyclefocus.icon_col_width - preset.icon_size)/2)
+    local iconmarginbox = wibox.container.margin(w)
+    iconmarginbox:set_left(icon_center_margin)
+    iconmarginbox:set_right(icon_center_margin)
+    iconmarginbox:set_top(icon_margin)
+    iconmarginbox:set_bottom(icon_margin)
+    return iconmarginbox
+end
+
+-- Get widget for client icon.  Uses awful.widget.clienticon if available.
+if awful.widget.clienticon then
+    cyclefocus.get_client_icon_widget = function(c, preset)
+        local w = awful.widget.clienticon(c)
+        w:set_forced_width(preset.icon_size)
+        w:set_forced_height(preset.icon_size)
+        return get_icon_wrapper_widget(w, preset)
+    end
 else
-    cyclefocus.icon_loader = function(icon) return icon end
+    local has_gears, gears = pcall(require, 'gears')
+    local icon_loader
+    if has_gears then
+        -- Use gears to prevent memory leaking.
+        icon_loader = gears.surface.load
+    else
+        icon_loader = function(icon) return icon end
+    end
+
+    cyclefocus.get_client_icon_widget = function(c, preset)
+        if not c.icon then
+            return
+        end
+        local icon = icon_loader(c.icon)
+        local icon_size = preset.icon_size
+
+        -- Code originally via naughty.
+        local cairo = require("lgi").cairo
+        local scaled = cairo.ImageSurface(cairo.Format.ARGB32, icon_size, icon_size)
+        local cr = cairo.Context(scaled)
+        cr:scale(preset.icon_size / icon:get_height(), preset.icon_size / icon:get_width())
+        cr:set_source_surface(icon, 0, 0)
+        cr:paint()
+        icon = scaled
+
+        local iconbox = wibox.widget.imagebox()
+        iconbox:set_resize(false)
+        iconbox:set_image(icon)
+        return get_icon_wrapper_widget(iconbox, preset)
+    end
 end
 
 -- A set of default filters, which can be used for cyclefocus.cycle_filters.
@@ -693,6 +742,9 @@ cyclefocus.cycle = function(startdirection_or_args, args)
         end
     end
 
+    -- Not documented.
+    local get_client_icon_widget = args.get_client_icon_widget
+
     local filter_result_cache = {}     -- Holds cached filter results.
 
     local show_clients = args.show_clients
@@ -964,11 +1016,10 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             container_layout = wibox.container.background(container_layout)
             container_layout:set_bg(beautiful.bg_normal..'cc')
 
-            -- constraint:set_widget(layout)
-            -- constraint = wibox.layout.constraint(layout, "max", w, h/2)
-            -- wbox:set_widget(constraint)
             wbox:set_widget(container_layout)
-            layout = wibox.layout.flex.vertical()
+            -- "fixed" appears to work better for when there are no icons to
+            -- prevent cropping of the text.
+            layout = wibox.layout.fixed.vertical()
             container_inner:set_middle(layout)
         else
             layout:reset()
@@ -986,7 +1037,6 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             })
         end
         local wbox_height = 0
-        local max_icon_size = 48
 
         -- Create entry with index, name and screen.
         local display_entry_for_idx_offset = function(offset, c, _idx, displayed_list)  -- {{{
@@ -999,45 +1049,23 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                 idx=_idx,
                 displayed_list=displayed_list }
             local preset_for_offset = args.preset_for_offset
-            local preset_cb = preset_for_offset[tostring(offset)]
             -- Callback for all.
             if preset_for_offset.default then
                 preset_for_offset.default(preset, args_for_cb)
             end
             -- Callback for offset.
+            local preset_cb = preset_for_offset[tostring(offset)]
             if preset_cb then
                 preset_cb(preset, args_for_cb)
             end
 
-            -- local entry_layout = wibox.layout.flex.horizontal()
             local entry_layout = wibox.layout.fixed.horizontal()
 
-            -- From naughty.
-            local icon = preset.icon
-            local icon_margin = 5
-            local iconmarginbox
-            if icon then
-                local cairo = require("lgi").cairo
-                local iconbox = wibox.widget.imagebox()
-                local icon_size = preset.icon_size
-                if icon_size then
-                    local scaled = cairo.ImageSurface(cairo.Format.ARGB32, icon_size, icon_size)
-                    local cr = cairo.Context(scaled)
-                    cr:scale(icon_size / icon:get_height(), icon_size / icon:get_width())
-                    cr:set_source_surface(icon, 0, 0)
-                    cr:paint()
-                    icon = scaled
-                    icon_margin = icon_margin + math.max(0, (max_icon_size - icon_size)/2)
+            if preset.icon_size then
+                local icon_widget = get_client_icon_widget(c, preset)
+                if icon_widget then
+                    entry_layout:add(icon_widget)
                 end
-
-                -- Margin.
-                iconmarginbox = wibox.container.margin(iconbox)
-                iconmarginbox:set_margins(icon_margin)
-
-                iconbox:set_resize(false)
-                iconbox:set_image(icon)
-
-                entry_layout:add(iconmarginbox)
             end
 
             local textbox = wibox.widget.textbox()
@@ -1045,12 +1073,15 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             textbox:set_font(preset.font)
             textbox:set_wrap("word_char")
             textbox:set_ellipsize("middle")
+            -- Set height to no wrap with fixed main layout.
+            local _, h = textbox:get_preferred_size(c.screen)
+            textbox:set_forced_height(h)
             local textbox_margin = wibox.container.margin(textbox)
             textbox_margin:set_margins(dpi(5))
 
             entry_layout:add(textbox_margin)
-            entry_layout = wibox.container.margin(entry_layout, dpi(5), dpi(5),
-                                               dpi(2), dpi(2))
+            entry_layout = wibox.container.margin(
+                entry_layout, dpi(5), dpi(5), dpi(2), dpi(2))
             local entry_with_bg = wibox.container.background(entry_layout)
             if offset == 0 then
                 entry_with_bg:set_fg(beautiful.fg_focus)
@@ -1063,7 +1094,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
             -- Add height to outer wibox.
             local context = {dpi=beautiful.xresources.get_dpi(initial_screen)}
-            local _, h = entry_with_bg:fit(context, wbox.width, 2^20)
+            _, h = entry_with_bg:fit(context, wbox.width, 2^20)
             wbox_height = wbox_height + h
         end  -- }}}
 

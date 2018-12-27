@@ -228,7 +228,7 @@ cyclefocus = {
     display_next_count = 3,
     display_prev_count = 3,
 
-    -- Default preset to for entries.
+    -- Default preset to use for entries.
     -- `preset_for_offset` (below) gets added to it.
     default_preset = {},
 
@@ -242,16 +242,14 @@ cyclefocus = {
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
             preset.font = 'sans 8'
-            preset.icon_size = 36
+            preset.icon_size = dpi(24)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, false))
-
-            preset.icon = cyclefocus.icon_loader(args.client.icon)
         end,
 
         -- Preset for current entry.
         ["0"] = function (preset, args)
-            preset.font = 'sans 12'
-            preset.icon_size = 48
+            preset.font = 'sans 14'
+            preset.icon_size = dpi(36)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there is more than one.
             if screen.count() > 1 then
@@ -275,6 +273,11 @@ cyclefocus = {
     cycle_filters = {
         function(c, source_c) return not c.minimized end,  --luacheck: no unused args
     },
+
+    -- Experimental: Width of icon column ("max_icon_size", used for margin).
+    -- This could be "margin" etc instead, but currently only the width for the
+    -- current entry is known.
+    icon_col_width = dpi(36),
 
     -- EXPERIMENTAL: only add clients to the history that have been focused by
     -- cyclefocus.
@@ -301,7 +304,7 @@ cyclefocus = {
     -- 1: enable, 2: verbose, 3: very verbose, 4: much verbose.
     debug_level = 0,
     -- Use naughty notifications for debugging (additional to printing)?
-    debug_use_naughty_notify = 1,
+    debug_use_naughty_notify = false,
 }
 ```
 
