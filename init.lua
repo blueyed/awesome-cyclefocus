@@ -893,6 +893,9 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
         if exit_key and key == exit_key then
             return exit_grabber(initiating_client)
+        elseif #mod == 1 and mod[1] == 'Control' and key == 'c' then
+            -- exit on Ctrl-C always.
+            return exit_grabber(initiating_client)
         end
 
         -- Direction (forward/backward) is determined by status of shift.
