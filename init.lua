@@ -73,7 +73,7 @@ cyclefocus = {
         -- Preset for current entry.
         ["0"] = function (preset, args)
             preset.font = 'sans 12'
-            preset.icon_size = 48
+            preset.icon_size = 72
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there is more than one.
             if screen.count() > 1 then
@@ -101,7 +101,7 @@ cyclefocus = {
     -- Experimental: Width of icon column ("max_icon_size", used for margin).
     -- This could be "margin" etc instead, but currently only the width for the
     -- current entry is known.
-    icon_col_width = 50,
+    icon_col_width = 72,
 
     -- EXPERIMENTAL: only add clients to the history that have been focused by
     -- cyclefocus.
@@ -137,13 +137,13 @@ cyclefocus = {
 
 -- Wrap icon widget with margin.
 local get_icon_wrapper_widget = function(w, preset)
-    local icon_margin = preset.icon_margin or 5
-    local icon_size = preset.icon_size
-    local max_icon_size = cyclefocus.icon_col_width
-    icon_margin = icon_margin + math.max(0, (max_icon_size - icon_size)/2)
-    -- local iconmarginbox = wibox.container.place(w, 'center', 'center')
+    local icon_margin = preset.icon_margin or dpi(5)
+    local icon_center_margin = icon_margin + math.max(0, (cyclefocus.icon_col_width - preset.icon_size)/2)
     local iconmarginbox = wibox.container.margin(w)
-    iconmarginbox:set_margins(icon_margin)
+    iconmarginbox:set_left(icon_center_margin)
+    iconmarginbox:set_right(icon_center_margin)
+    iconmarginbox:set_top(icon_margin)
+    iconmarginbox:set_bottom(icon_margin)
     return iconmarginbox
 end
 
@@ -1059,7 +1059,6 @@ cyclefocus.cycle = function(startdirection_or_args, args)
                 preset_cb(preset, args_for_cb)
             end
 
-            -- local entry_layout = wibox.layout.flex.horizontal()
             local entry_layout = wibox.layout.fixed.horizontal()
 
             if preset.icon_size then
