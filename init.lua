@@ -1119,8 +1119,22 @@ function cyclefocus.key(mods, key, startdirection_or_args, args)
             args.keys = {key}
         end
     end
-    args.keys = args.keys or {key}
-    args.modifier = args.modifier or mods[0]
+    if not args.modifier then
+        -- Convert modifier to key name.
+        -- Table from awful.key.
+        local conversion = {
+            mod4    = "Super_L",
+            control = "Control_L",
+            shift   = "Shift_L",
+            mod1    = "Alt_L",
+            -- AltGr (https://github.com/awesomeWM/awesome/pull/2515).
+            mod5    = "ISO_Level3_Shift",
+        }
+        args.modifier = conversion[mods[1]:lower()]
+        if not args.modifier then
+            args.modifier = mods[1]
+        end
+    end
 
     return awful.key(mods, key, function(c)
         args.initiating_client = c  -- only for clientkeys, might be nil!
