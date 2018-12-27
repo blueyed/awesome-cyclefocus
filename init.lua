@@ -681,8 +681,11 @@ cyclefocus.cycle = function(startdirection_or_args, args)
     -- Use "Escape" as exit_key if not used as key.
     local exit_key = args.exit_key
     if exit_key == nil then
-        if not awful.util.table.hasitem(keys, 'Escape') then
-            exit_key = 'Escape'
+        for _,key in pairs({'Escape', 'q'}) do
+            if not awful.util.table.hasitem(keys, key) then
+                exit_key = key
+                break
+            end
         end
     end
 
