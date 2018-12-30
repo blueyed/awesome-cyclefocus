@@ -604,7 +604,9 @@ cyclefocus.callback_show_client = function (c, restore)
                 -- Update client props to be restored during showing a client,
                 -- e.g. border_color from focus signals.
                 update_show_client_restore_client_props[c][k] = function()
-                    show_client_restore_client_props[c][k] = c[k]
+                    if c.valid then
+                        show_client_restore_client_props[c][k] = c[k]
+                    end
                 end
                 client.connect_signal("property::" .. k, update_show_client_restore_client_props[c][k])
             end
