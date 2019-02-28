@@ -641,6 +641,7 @@ cyclefocus.show_client = function (c)
             restore_ontop_c()
             restore_ontop_c = nil
         end
+
         -- Handle setting ontop for the current client.
         -- This involves managing other properties, since setting "ontop"
         -- resets "fullscreen", "below", and "above".
@@ -661,17 +662,21 @@ cyclefocus.show_client = function (c)
                 if #ontop_restore_clients then
                     function restore_ontop_c()
                         for _,_c in pairs(ontop_restore_clients) do
-                            _c.ontop = true
+                            if _c.valid then
+                                _c.ontop = true
+                            end
                         end
                     end
                 end
             else
                 local ontop_orig_props = {c.ontop, c.below, c.above, c.fullscreen}
                 function restore_ontop_c()
-                    c.ontop = ontop_orig_props[1]
-                    c.below = ontop_orig_props[2]
-                    c.above = ontop_orig_props[3]
-                    c.fullscreen = ontop_orig_props[4]
+                    if c.valid then
+                        c.ontop = ontop_orig_props[1]
+                        c.below = ontop_orig_props[2]
+                        c.above = ontop_orig_props[3]
+                        c.fullscreen = ontop_orig_props[4]
+                    end
                 end
                 c.ontop = true
             end
