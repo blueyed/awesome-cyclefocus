@@ -261,6 +261,8 @@ end
 local get_object_name = function (o)
     if not o then
         return '[no object]'
+    elseif not o.valid then
+        return '[invalid object]'
     elseif not o.name then
         return '[no object name]'
     else
@@ -685,7 +687,7 @@ cyclefocus.show_client = function (c)
         -- Make the clients tag visible, if it currently is not.
         local sel_tags = c.screen.selected_tags
         local c_tag = c.first_tag or c:tags()[1]
-        if not awful.util.table.hasitem(sel_tags, c_tag) then
+        if c_tag and not awful.util.table.hasitem(sel_tags, c_tag) then
             -- Select only the client's first tag, after de-selecting
             -- all others.
 
