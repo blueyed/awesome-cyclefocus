@@ -47,6 +47,10 @@ cyclefocus = {
     -- can use when overriding this with a function (that gets the client as
     -- argument).
     raise_client = true,
+    -- Should the mouse pointer be moved away during cycling?
+    -- This is normally done to avoid interference from sloppy focus handling,
+    -- but can be disabled if you do not use sloppy focus.
+    move_mouse_pointer = true,
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 3,
@@ -890,7 +894,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
 
     -- Move mouse pointer away to avoid sloppy focus kicking in.
     local restore_mouse_coords
-    if show_clients then
+    if show_clients and args.move_mouse_pointer then
         local s = capi.screen[capi.mouse.screen]
         local coords = capi.mouse.coords()
         restore_mouse_coords = {s = s, x = coords.x, y = coords.y}

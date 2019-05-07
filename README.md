@@ -223,6 +223,10 @@ cyclefocus = {
     -- can use when overriding this with a function (that gets the client as
     -- argument).
     raise_client = true,
+    -- Should the mouse pointer be moved away during cycling?
+    -- This is normally done to avoid interference from sloppy focus handling,
+    -- but can be disabled if you do not use sloppy focus.
+    move_mouse_pointer = true,
 
     -- How many entries should get displayed before and after the current one?
     display_next_count = 3,
