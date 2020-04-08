@@ -275,14 +275,27 @@ local get_object_name = function (o)
 end
 cyclefocus.get_object_name = get_object_name
 
+local utf8_truncate = function (s, length)
+    if length == 0 then
+        return s
+    end
+    local n = 0
+    for i = 1, s:len() do
+        local b = s:byte(i)
+        if b < 0x80 or b >= 0xc0 then
+            n = n + 1
+            if n > length then
+                return s:sub(1, i - 1) .. '…'
+            end
+        end
+    end
+    return s
+end
 
 cyclefocus.get_client_title = function (c, current)  --luacheck: no unused args
     -- Use get_object_name to handle .name=nil.
     local title = cyclefocus.get_object_name(c)
-    if #title > 80 then
-        title = title:sub(1, 80) .. '…'
-    end
-    return title
+    return utf8_truncate(title, 80)
 end
 -- }}}
 
