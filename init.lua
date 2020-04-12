@@ -57,8 +57,16 @@ cyclefocus = {
     display_prev_count = 3,
 
     -- Default preset to use for entries.
-    -- `preset_for_offset` (below) gets added to it.
-    default_preset = {},
+    -- `preset_for_offset` (below) gets added/applied to it.
+    -- The settings below are used by the default handlers.
+    default_preset = {
+      base_font_name = 'sans',
+      base_font_size = 8,
+      base_icon_size = dpi(24),
+      scale_factor_for_entry_offset = {
+        ["0"] = 1.5,
+      }
+    },
 
     --- Templates for entries in the list.
     -- The following arguments get passed to a callback:
@@ -66,18 +74,21 @@ cyclefocus = {
     --  - idx: index number of current entry in clients list.
     --  - displayed_list: the list of entries in the list, possibly filtered.
     preset_for_offset = {
-        -- Default callback, which will gets applied for all offsets (first).
+        -- Default callback, which gets applied for all offsets (first).
         default = function (preset, args)
             -- Default font and icon size (gets overwritten for current/0 index).
-            preset.font = 'sans 8'
-            preset.icon_size = dpi(24)
+            local default_preset = cyclefocus.default_preset
+            local scale_factors = default_preset.scale_factor_for_entry_offset
+            local factor = scale_factors and scale_factors[tostring(args.offset)] or 1
+            local font_size = (default_preset.base_font_size or 8) * factor
+            local font_name = default_preset.base_font_name or 'sans'
+            preset.font = string.format('%s %d', font_name, font_size)
+            preset.icon_size = (default_preset.base_icon_size or dpi(24)) * factor
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, false))
         end,
 
         -- Preset for current entry.
         ["0"] = function (preset, args)
-            preset.font = 'sans 14'
-            preset.icon_size = dpi(36)
             preset.text = escape_markup(cyclefocus.get_client_title(args.client, true))
             -- Add screen number if there is more than one.
             if screen.count() > 1 then
