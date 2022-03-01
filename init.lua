@@ -1172,7 +1172,7 @@ end
 
 -- A helper method to wrap awful.key.
 function cyclefocus.key(mods, key, startdirection_or_args, args)
-    mods = mods or {modkey} or {"Mod4"}
+    mods = mods or {modkey or "Mod4"}
     key = key or "Tab"
     if type(startdirection_or_args) == 'number' then
         awful.util.deprecate('startdirection is not used anymore: pass in mods, key, args', {raw=true})
