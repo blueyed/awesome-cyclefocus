@@ -196,6 +196,12 @@ end
 cyclefocus.filters = {
     -- Filter clients on the same screen.
     same_screen = function (c, source_c)
+        -- fix for error message
+        --- cyclefocus/init.lua:199: attempt to index a nil value (local `source_c`)
+        --- reproduced when you try to mod+tab on tag without clients but some other tag have an client
+        if nil == source_c then
+            return
+        end
         return (c.screen or capi.mouse.screen) == source_c.screen
     end,
 
@@ -1059,7 +1065,7 @@ cyclefocus.cycle = function(startdirection_or_args, args)
             local w = math.ceil(wa.width * 0.618)
             wbox:geometry({
                 -- right-align.
-                x = math.ceil(wa.x + wa.width - w),
+                x = math.ceil(wa.x + (wa.width - w)/2),
                 width = w,
             })
         end
